@@ -11,7 +11,7 @@ pipeline {
 			options {
 		        timeout(time: 1, unit: 'HOURS')
 			}
-			agent 'osx' 
+			agent { label 'osx' } 
 			steps {
 				checkout scm
 				sh "automation/processor/buildPackage.sh ${BUILD_NUMBER} ${BRANCH_NAME}"
