@@ -1,3 +1,4 @@
+[![cdaf version](automation/badge.png)](http://cdaf.io)
 # Digital Experience (iOS)
 
 iOS build performed on Macmini, orchestrated by Jenkins.
