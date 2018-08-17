@@ -86,6 +86,15 @@ else
 		rm ./solution.properties
 	else
 		# Neither build nor package, load target properties, i.e. it's either local or remote
+		if [ -f "predeploy.properties" ]; then
+			echo
+			echo "Load predeploy.properties ... "
+			propertiesList=$($AUTOMATIONHELPER/transform.sh "predeploy.properties")
+			printf "$propertiesList"
+			eval $propertiesList
+		else
+			echo "$0 :   predeploy   : (predeploy.properties not found, skipping)"
+		fi
 		echo
 		echo "Load Target Properties ... "
 		propertiesList=$($AUTOMATIONHELPER/transform.sh "$TARGET")
@@ -107,10 +116,21 @@ do
 
 	# Exit argument set
 	if [ "$feature" == "EXITIF" ]; then
-		exitVar="${LINE:7}"
-		printf "$LINE ==> if [ $exitVar ] then exit"
-		EXECUTABLESCRIPT="if [ $exitVar ]; then "
-		EXECUTABLESCRIPT+="echo \"Controlled exit due to \$exitVar = $exitVar\";exit;fi"
+		IFS=' ' read -ra ADDR <<< $LINE
+		exitVar="${ADDR[1]}"
+		condition="${ADDR[2]}"
+		echo $exitVar
+		echo $condition
+		
+		if [ -z "$condition" ]; then
+			printf "$LINE ==> if [ ${exitVar} ]; then exit"
+			EXECUTABLESCRIPT="if [ ${exitVar} ]; then "
+			EXECUTABLESCRIPT+="echo \". Controlled exit due to \$exitVar being set\";exit;fi"
+		else
+			printf "$LINE ==> if [[ ${exitVar} == '$condition' ]]; then exit"
+			EXECUTABLESCRIPT="if [[ ${exitVar} == '$condition' ]]; then "
+			EXECUTABLESCRIPT+="echo \". Controlled exit due to $exitVar = $condition\";exit;fi"
+		fi
 	fi
 
 	# Exit argument set

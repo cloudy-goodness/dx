@@ -46,6 +46,21 @@ function executeYumCheck {
 	done
 }
 
+function executeIgnore {
+	echo "[$scriptName] $1"
+	eval $1
+	exitCode=$?
+	# Check execution normal, warn if exception but do not fail
+	if [ "$exitCode" != "0" ]; then
+		if [ "$exitCode" == "1" ]; then
+			echo "$0 : Warning: Returned $exitCode assuming already installed and continuing ..."
+		else
+			echo "$0 : Error! Returned $exitCode, exiting!"; exit $exitCode 
+		fi
+	fi
+	return $exitCode
+}
+
 scriptName='installAnsible.sh'
 
 echo "[$scriptName] --- start ---"
@@ -77,6 +92,19 @@ fi
 
 test="`yum --version 2>&1`"
 if [[ "$test" == *"not found"* ]]; then
+	echo "[$scriptName] yum not found, assuming Debian/Ubuntu, using apt-get"
+else
+	fedora='yes'
+	centos=$(cat /etc/redhat-release | grep CentOS)
+	if [ -z "$centos" ]; then
+		echo "[$scriptName] Red Hat Enterprise Linux"
+	else
+		echo "[$scriptName] CentOS Linux"
+	fi
+fi
+echo
+
+if [ -z "$fedora" ]; then
 	echo "[$scriptName] Debian/Ubuntu, update repositories using apt-get"
 	echo
 	echo "[$scriptName] Check that APT is available"
@@ -125,11 +153,15 @@ if [[ "$test" == *"not found"* ]]; then
 	
 else
 	echo "[$scriptName] CentOS/RHEL, update repositories using yum"
-	centos='yes'
 	executeYumCheck "$elevate yum check-update"
 	executeExpression "$elevate yum install -y gcc openssl-devel libffi-devel python-devel"
 	if [ "$systemWide" == 'yes' ]; then
-		executeExpression "$elevate yum install -y epel-release"
+		if [ -z "$centos" ]; then # Red Hat Enterprise Linux (RHEL)
+			echo "[$scriptName] Red Hat Enterprise Linux"
+		    executeIgnore "$elevate yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm" # Ignore if already installed
+		else
+			executeExpression "$elevate yum install -y epel-release"
+		fi
 		executeExpression "$elevate yum install -y ansible"
 	fi
 fi

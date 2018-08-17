@@ -12,7 +12,8 @@ function executeExpression {
 		if [ "$exitCode" != "0" ]; then
 			counter=$((counter + 1))
 			if [ "$counter" -le "$max" ]; then
-				echo "[$scriptName] Failed with exit code ${exitCode}! Retrying $counter of ${max}"
+				echo "[$scriptName] Failed with exit code ${exitCode}! Retrying $counter of ${max} after 20 second pause ..."
+				sleep 20
 			else
 				echo "[$scriptName] Failed with exit code ${exitCode}! Max retries (${max}) reached."
 				exit $exitCode
@@ -22,6 +23,21 @@ function executeExpression {
 		fi
 	done
 }  
+
+function executeIgnore {
+	echo "[$scriptName] $1"
+	eval $1
+	exitCode=$?
+	# Check execution normal, warn if exception but do not fail
+	if [ "$exitCode" != "0" ]; then
+		if [ "$exitCode" == "1" ]; then
+			echo "$0 : Warning: Returned $exitCode assuming already installed and continuing ..."
+		else
+			echo "$0 : Error! Returned $exitCode, exiting!"; exit $exitCode 
+		fi
+	fi
+	return $exitCode
+}
 
 scriptName='installDocker.sh'
 
@@ -54,8 +70,13 @@ test="`yum --version 2>&1`"
 if [[ "$test" == *"not found"* ]]; then
 	echo "[$scriptName] yum not found, assuming Debian/Ubuntu, using apt-get"
 else
-	centos='yes'
-	echo "[$scriptName] yum found, assuming Fedora based distribution (RHEL/CentOS)"
+	fedora='yes'
+	centos=$(cat /etc/redhat-release | grep CentOS)
+	if [ -z "$centos" ]; then
+		echo "[$scriptName] Red Hat Enterprise Linux"
+	else
+		echo "[$scriptName] CentOS Linux"
+	fi
 fi
 echo
 
@@ -87,8 +108,14 @@ fi
 # If not binary install, or binary not found, install via repos 
 if [ -z "$package" ]; then
 
-	if [ "$centos" ]; then
-	
+	if [ "$fedora" ]; then
+
+		if [ -z "$centos" ]; then # Red Hat Enterprise Linux (RHEL)
+		    install='latest'
+			echo "[$scriptName] For RHEL, only $install supported"
+		    executeIgnore "$elevate subscription-manager repos --enable=rhel-7-server-extras-rpms" # Ignore if already installed
+		fi
+
 		if [ "$install" == 'canon' ]; then
 
 			if [ -f /etc/os-release ]; then 
@@ -131,7 +158,11 @@ if [ -z "$package" ]; then
 			fi
 
 		else
-			echo "[$scriptName] Only canonical for CentOS/RHEL supported"
+			executeExpression "$elevate yum install -y yum-utils device-mapper-persistent-data lvm2"
+			executeExpression "$elevate yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
+			executeExpression "$elevate yum install -y docker-ce"
+			executeExpression "$elevate service docker start"
+			executeExpression "$elevate service docker status"
 		fi
 		
 	else # Debian

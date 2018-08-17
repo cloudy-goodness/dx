@@ -46,6 +46,21 @@ function executeYumCheck {
 	done
 }
 
+function executeIgnore {
+	echo "[$scriptName] $1"
+	eval $1
+	exitCode=$?
+	# Check execution normal, warn if exception but do not fail
+	if [ "$exitCode" != "0" ]; then
+		if [ "$exitCode" == "1" ]; then
+			echo "$0 : Warning: Returned $exitCode assuming already installed and continuing ..."
+		else
+			echo "$0 : Error! Returned $exitCode, exiting!"; exit $exitCode 
+		fi
+	fi
+	return $exitCode
+}
+
 scriptName='installPython.sh'
 
 echo "[$scriptName] --- start ---"
@@ -57,12 +72,33 @@ else
 	echo "[$scriptName]   version : $version (choices 2 or 3)"
 fi
 
+install=$2
+if [ -z "$install" ]; then
+	echo "[$scriptName]   install : (PiP install list not supplied, no additional action will be attempted)"
+else
+	echo "[$scriptName]   install : $install"
+fi
+
 if [ $(whoami) != 'root' ];then
 	elevate='sudo'
 	echo "[$scriptName]   whoami  : $(whoami)"
 else
 	echo "[$scriptName]   whoami  : $(whoami) (elevation not required)"
 fi
+
+test="`yum --version 2>&1`"
+if [[ "$test" == *"not found"* ]]; then
+	echo "[$scriptName] yum not found, assuming Debian/Ubuntu, using apt-get"
+else
+	fedora='yes'
+	centos=$(cat /etc/redhat-release | grep CentOS)
+	if [ -z "$centos" ]; then
+		echo "[$scriptName] Red Hat Enterprise Linux"
+	else
+		echo "[$scriptName] CentOS Linux"
+	fi
+fi
+echo
 
 if [ "$version" == "2" ]; then
 	test="`python --version 2>&1`"
@@ -95,8 +131,7 @@ if [ -n "$test" ]; then
 	fi
 else	
 
-	test="`yum --version 2>&1`"
-	if [[ "$test" == *"not found"* ]]; then
+	if [ -z "$fedora" ]; then
 		echo "[$scriptName] Debian/Ubuntu, update repositories using apt-get"
 		echo
 		echo "[$scriptName] Check that APT is available"
@@ -158,7 +193,17 @@ else
 		executeYumCheck "$elevate yum check-update"
 	
 		echo
-		executeExpression "$elevate yum install -y epel-release"
+
+		if [ "$systemWide" == 'yes' ]; then
+			if [ -z "$centos" ]; then # Red Hat Enterprise Linux (RHEL)
+				echo "[$scriptName] Red Hat Enterprise Linux"
+			    executeIgnore "$elevate yum install -y http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm"
+			else
+				executeExpression "$elevate yum install -y epel-release"
+			fi
+			executeExpression "$elevate yum install -y ansible"
+		fi
+
 		executeExpression "$elevate yum install -y python${version}*"
 		executeExpression "curl -s -O https://bootstrap.pypa.io/get-pip.py"
 		executeExpression "$elevate python${version} get-pip.py"
@@ -175,5 +220,13 @@ else
 		executeExpression "pip3 --version"
 	fi
 fi	
+
+if [ ! -z "$install" ]; then
+	if [ "$version" == "2" ]; then
+		executeExpression "pip install $install"
+	else
+		executeExpression "pip3 install $install"
+	fi
+fi
  
 echo "[$scriptName] --- end ---"
