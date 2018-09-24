@@ -171,3 +171,12 @@ else
 		fi
 	fi
 fi
+
+if [ "$ACTION" == "staging@"* ]; then # Primarily for VSTS / Azure pipelines & IBM BlueMix
+	IFS='@' read -ra arr <<< $ACTION
+	if [ ! -d "${arr[1]}" ]; then
+		executeExpression "mkdir -p '${arr[1]}'"
+	fi
+	executeExpression "cp -rf './TasksLocal/' '${arr[1]}'"
+	executeExpression "cp -f '*.gz' '${arr[1]}'"
+}

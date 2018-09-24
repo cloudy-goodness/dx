@@ -164,13 +164,11 @@ if [ "$caseinsensitive" != "buildonly" ] && [ "$caseinsensitive" != "packageonly
 	echo
     echo 'For GitLab (requires shell runner) ...'
     echo '  In .gitlab-ci.yml (in the root of the repository) add the following hook into the CI job'
-    echo "    script: \"automation/processor/buildPackage.sh \${CI_BUILD_ID} \${CI_BUILD_REF_NAME}\""
+    echo '    script: "automation/processor/buildPackage.sh ${CI_BUILD_ID} ${CI_BUILD_REF_NAME}"'
 	echo
     echo 'For BlueMix ...'
-    echo "  Command Executable : ./automation/processor/buildPackage.sh $BUILD_NUMBER"
-    echo '                       mkdir staging'
-    echo '                       mv -r TasksLocal staging'
-    echo '                       mv -r *.gz staging'
+    echo '  Similar to TFS/Azure DevOps, BlueMix supports a single "staging" directory for artefact retention'
+    echo '  Build script : ./automation/processor/buildPackage.sh $BUILD_NUMBER $GIT_BRANCH staging@staging'
     echo
 	echo "$scriptName : -------------------------------------------------------"
 fi
@@ -219,7 +217,8 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
     echo '      - .gz'
 	echo
 	echo 'For BlueMix ...'
-	echo '  Only a single location can be referenced, so if a gzip package is required, explicity move TasksLocal and *.gz'
+	echo '  Use the staging directory created based on staging@ argument'
+	echo '  Build archive directory : staging'
 	echo
 	echo "$scriptName : -------------------------------------------------------"
 	echo
@@ -276,10 +275,7 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
 	echo
 	echo 'For BlueMix ...'
 	echo '  Artifact directory becomes the root of the workspace, so need to create relative path using script executor'
-	echo '    mkdir -pv /tmp/TasksLocal'
-	echo '    cp -r ** /tmp/TasksLocal'
-	echo '    cd /tmp'
-	echo '    ./TasksLocal/delivery.sh <environment name>'
+	echo '    ./TasksLocal/delivery.sh $IDS_JOB_NAME'
    	echo
 	echo "$scriptName : -------------------------------------------------------"
 
