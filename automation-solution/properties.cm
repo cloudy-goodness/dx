@@ -1,0 +1,6 @@
+context  target   pushtoPlaystore deployHost        deployUser  deployLand
+remote   VAGRANT  no              server-1.sky.net  deployer    /opt/packages/$DEPLOY_TARGET
+remote   LINUX    no              localhost         deployer    /opt/packages/$DEPLOY_TARGET
+local    dev      no
+local    test     no
+local    prod     yes
