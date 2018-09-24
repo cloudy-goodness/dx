@@ -168,6 +168,9 @@ if [ "$caseinsensitive" != "buildonly" ] && [ "$caseinsensitive" != "packageonly
 	echo
     echo 'For BlueMix ...'
     echo "  Command Executable : ./automation/processor/buildPackage.sh $BUILD_NUMBER"
+    echo '                       mkdir staging'
+    echo '                       mv -r TasksLocal staging'
+    echo '                       mv -r *.gz staging'
     echo
 	echo "$scriptName : -------------------------------------------------------"
 fi
@@ -214,6 +217,9 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
     echo '      paths:'
     echo '      - TasksLocal/'
     echo '      - .gz'
+	echo
+	echo 'For BlueMix ...'
+	echo '  Only a single location can be referenced, so if a gzip package is required, explicity move TasksLocal and *.gz'
 	echo
 	echo "$scriptName : -------------------------------------------------------"
 	echo
@@ -269,8 +275,11 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
     echo '    environment: <environment>'
 	echo
 	echo 'For BlueMix ...'
-	echo '  For each environment, the environment name is a literal which needs to be defined each time'
-	echo "  Command : ./$workDirLocal/$cdInstruction <environment name>"
+	echo '  Artifact directory becomes the root of the workspace, so need to create relative path using script executor'
+	echo '    mkdir -pv /tmp/TasksLocal'
+	echo '    cp -r ** /tmp/TasksLocal'
+	echo '    cd /tmp'
+	echo '    ./TasksLocal/delivery.sh <environment name>'
    	echo
 	echo "$scriptName : -------------------------------------------------------"
 
