@@ -179,4 +179,4 @@ if [ "$ACTION" == "staging@"* ]; then # Primarily for VSTS / Azure pipelines & I
 	fi
 	executeExpression "cp -rf './TasksLocal/' '${arr[1]}'"
 	executeExpression "cp -f '*.gz' '${arr[1]}'"
-}
+fi
