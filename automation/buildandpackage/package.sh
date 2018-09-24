@@ -74,6 +74,14 @@ for i in $(ls -d */); do
 done
 echo "$0 :   SOLUTIONROOT             : $SOLUTIONROOT"
 
+printf "$0 :   Properties Driver        : "
+propertiesDriver="$SOLUTIONROOT/properties.cm"
+if [ -f $propertiesDriver ]; then
+	echo "found ($propertiesDriver)"
+else
+	echo "none ($propertiesDriver)"
+fi
+
 printf "$0 :   Pre-package Tasks        : "
 prepackageTasks="$SOLUTIONROOT/package.tsk"
 if [ -f $prepackageTasks ]; then
@@ -106,6 +114,14 @@ else
 	echo "none ($remoteArtifactListFile)"
 fi
 
+genericArtifactListFile="./$SOLUTIONROOT/storeFor"
+printf "$0 :   generic artifact list    : "
+if [ -f  "$genericArtifactListFile" ]; then
+	echo "found ($genericArtifactListFile)"
+else
+	echo "none ($genericArtifactListFile)"
+fi
+
 echo "$0 :   pwd                      : $(pwd)"
 echo "$0 :   hostname                 : $(hostname)"
 echo "$0 :   whoami                   : $(whoami)"
@@ -113,23 +129,16 @@ echo "$0 :   whoami                   : $(whoami)"
 cdafVersion=$($AUTOMATIONROOT/remote/getProperty.sh "$AUTOMATIONROOT/CDAF.linux" "productVersion")
 echo "$0 :   CDAF Version             : $cdafVersion"
 
-echo
-echo "$0 : Clean root workspace ($(pwd))"
-echo
+echo; echo "$0 : Clean root workspace ($(pwd))"; echo
 rm -fv *.tar *.gz manifest.txt targetList
-rm -rf $LOCAL_WORK_DIR $REMOTE_WORK_DIR
-echo
-echo "$0 : Remove working directories"
-echo
-if [ -d  "$LOCAL_WORK_DIR" ]; then
-	echo "remove $LOCAL_WORK_DIR"
-	rm -rf $LOCAL_WORK_DIR
-fi
 
-if [ -d  "$REMOTE_WORK_DIR" ]; then
-	echo "remove $REMOTE_WORK_DIR"
-	rm -rf $REMOTE_WORK_DIR
-fi
+echo; echo "$0 : Remove working directories"; echo # perform explicit removal as rm -rfv is too verbose
+for packageDir in $(echo "$REMOTE_WORK_DIR $LOCAL_WORK_DIR ./propertiesForRemoteTasks ./propertiesForLocalTasks"); do
+	if [ -d  "${packageDir}" ]; then
+		echo "removed ${packageDir}"
+		rm -rf ${packageDir}
+	fi
+done
 
 if [ ! -z "$ACTION" ]; then
 	# case insensitive by forcing to uppercase
@@ -137,15 +146,44 @@ if [ ! -z "$ACTION" ]; then
 fi
 
 if [ "$testForClean" == "CLEAN" ]; then
-	echo
-	echo "$0 : Solution Workspace Clean Only"
+	echo; echo "$0 : Solution Workspace Clean Only"
 else
-	
+
+	# Properties generator (added in release 1.7.8)
+	if [ -f $propertiesDriver ]; then
+		echo; echo "$0 : Generating properties files from ${propertiesDriver}"
+		header=$(head -n 1 ${propertiesDriver})
+		read -ra columns <<<"$header"
+		config=$(tail -n +2 ${propertiesDriver})
+		while read -r line; do
+			read -ra arr <<<"$line"
+			if [[ "${arr[0]}" == 'remote' ]]; then
+				cdafPath="./propertiesForRemoteTasks"
+			else
+				cdafPath="./propertiesForLocalTasks"
+			fi
+			echo "$0 : Generating ${cdafPath}/${arr[1]}"
+			if [ ! -d ${cdafPath} ]; then
+				mkdir -p ${cdafPath}
+			fi
+			for i in "${!columns[@]}"; do
+				if [ $i -gt 1 ]; then # do not create entries for context and target
+					echo "${columns[$i]}=${arr[$i]}" >> "${cdafPath}/${arr[1]}"
+				fi
+			done
+		done < <(echo "$config")
+		if [ -d "${remotePropertiesDir}" ] && [ -d "./propertiesForRemoteTasks/" ]; then
+			echo "$0 : Generated properties will be merged with any defined properties in ${remotePropertiesDir}"
+		fi
+		if [ -d "$SOLUTIONROOT/propertiesForLocalTasks" ] && [ -d "./propertiesForLocalTasks/" ]; then
+			echo "$0 : Generated properties will be merged with any defined properties in $SOLUTIONROOT/propertiesForLocalTasks"
+		fi
+		
+	fi
+
 	# Process optional pre-packaging tasks (Task driver support added in release 0.7.2)
 	if [ -f $prepackageTasks ]; then
-		echo
-		echo "Process Pre-Package Tasks ..."
-		echo
+		echo; echo "Process Pre-Package Tasks ..."; echo
 		echo "AUTOMATIONROOT=$AUTOMATIONROOT" > ./solution.properties
 		echo "SOLUTIONROOT=$SOLUTIONROOT" >> ./solution.properties
 		$automationHelper/execute.sh "$SOLUTION" "$BUILDNUMBER" "$SOLUTIONROOT" "$prepackageTasks" "$ACTION" 2>&1
@@ -161,20 +199,15 @@ else
 	echo "BUILDNUMBER=$BUILDNUMBER" >> manifest.txt
 	# Process solution properties if defined
 	if [ -f "$SOLUTIONROOT/CDAF.solution" ]; then
-		echo
-		echo "$0 : CDAF.solution file found in directory \"$SOLUTIONROOT\", load solution properties"
+		echo; echo "$0 : CDAF.solution file found in directory \"$SOLUTIONROOT\", load solution properties"
 		propertiesList=$($automationHelper/transform.sh "$SOLUTIONROOT/CDAF.solution")
-		echo
-		echo "$propertiesList"
+		echo; echo "$propertiesList"
 		cat $SOLUTIONROOT/CDAF.solution >> manifest.txt	
 	fi
-	echo
-	echo "$0 : Created manifest.txt file ..."
-	echo
-	cat manifest.txt
-	echo	
-	echo "$0 : Always create local working artefacts, even if all tasks are remote"
-	echo
+	echo; echo "$0 : Created manifest.txt file ..."; echo
+	while read line; do echo "  $line"; done < manifest.txt
+	
+	echo; echo "$0 : Always create local artefacts, even if all tasks are remote"; echo
 	./$AUTOMATIONROOT/buildandpackage/packageLocal.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$LOCAL_WORK_DIR" "$SOLUTIONROOT" "$AUTOMATIONROOT"
 	exitCode=$?
 	if [ $exitCode -ne 0 ]; then
@@ -184,7 +217,7 @@ else
 
 	# Only create the remote package if there is a remote target folder or a artefact definition list, if folder exists
 	# create the remote package (even if there are no target files within it)
-	if [ -d  "$remotePropertiesDir" ] || [ -f "$remoteArtifactListFile" ]; then
+	if [ -d  "$remotePropertiesDir" ] || [ -f "$remoteArtifactListFile" ] || [ -f "$genericArtifactListFile" ]; then
 		./$AUTOMATIONROOT/buildandpackage/packageRemote.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$REMOTE_WORK_DIR" "$SOLUTIONROOT" "$AUTOMATIONROOT"
 		exitCode=$?
 		if [ $exitCode -ne 0 ]; then
@@ -195,9 +228,7 @@ else
 
 	# Process optional post-packaging tasks (Task driver support added in release 0.8.2)
 	if [ -f $postpackageTasks ]; then
-		echo
-		echo "Process Post-Package Tasks ..."
-		echo
+		echo; echo "Process Post-Package Tasks ..."; echo
 		$automationHelper/execute.sh "$SOLUTION" "$BUILDNUMBER" "$SOLUTIONROOT" "$postpackageTasks" "$ACTION" 2>&1
 		exitCode=$?
 		if [ "$exitCode" != "0" ]; then
@@ -206,5 +237,5 @@ else
 		fi
 	fi
 fi
-echo
-echo "$0 : --- Solution Packaging Complete ---"
+
+echo; echo "$0 : --- Solution Packaging Complete ---"
