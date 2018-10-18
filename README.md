@@ -1,7 +1,7 @@
 [![cdaf version](automation/badge.png)](http://cdaf.io)
-# Digital Experience (iOS)
+# Digital Experience
 
-iOS build performed on Macmini, orchestrated by Jenkins.
+Web APIs delivered via IBM Cloud (formerly BlueMix).
 
 # Make your own fork
 
