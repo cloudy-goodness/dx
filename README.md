@@ -1,4 +1,4 @@
-[![cdaf version](automation/badge.png)](http://cdaf.io)
+[![cdaf version](automation/badge.svg)](http://cdaf.io)
 # Digital Experience
 
 Web APIs delivered via IBM Cloud (formerly BlueMix).
