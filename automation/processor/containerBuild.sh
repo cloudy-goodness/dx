@@ -35,7 +35,8 @@ fi
 
 REVISION=$3
 if [ -z "$REVISION" ]; then
-	echo "[$scriptName] REVISION      : (not supplied)"
+	REVISION='container_build'
+	echo "[$scriptName] REVISION      : $REVISION (not supplied, set to default)"
 else
 	echo "[$scriptName] REVISION      : $REVISION"
 fi
@@ -63,7 +64,6 @@ else
 	echo "[$scriptName] cdafVersion   : $cdafVersion"
 fi
 
-echo "[$scriptName] \$DOCKER_HOST  : $DOCKER_HOST"
 SOLUTIONROOT="$AUTOMATIONROOT/solution"
 for i in $(ls -d */); do
 	directoryName=${i%%/}
@@ -71,12 +71,13 @@ for i in $(ls -d */); do
 		SOLUTIONROOT="$directoryName"
 	fi
 done
-echo "[$scriptName] \$SOLUTIONROOT : $SOLUTIONROOT"
-buildImage="${imageName}_container_build"
+echo "[$scriptName] SOLUTIONROOT  : $SOLUTIONROOT"
+buildImage="${imageName}_$(echo "$REVISION" | awk '{print tolower($0)}')"
 echo "[$scriptName] buildImage    : $buildImage"
-echo "[$scriptName] whoami        : $(whoami)"
+echo "[$scriptName] DOCKER_HOST   : $DOCKER_HOST"
 echo "[$scriptName] pwd           : $(pwd)"
 echo "[$scriptName] hostname      : $(hostname)"
+echo "[$scriptName] whoami        : $(whoami)"
 
 # Test Docker is running
 echo "[$scriptName] List all current images"
@@ -95,9 +96,11 @@ fi
 
 imageTag=0
 for tag in $(docker images --filter label=cdaf.${buildImage}.image.version --format "{{.Tag}}"); do
-	intTag=$((${tag}))
-	if [[ $imageTag -le $intTag ]]; then
-		imageTag=$intTag
+	if [ "${tag}" != '<none>' ]; then
+		intTag=$((${tag}))
+		if [[ $imageTag -le $intTag ]]; then
+			imageTag=$intTag
+		fi
 	fi
 done
 echo "imageTag : $imageTag"
@@ -126,16 +129,18 @@ workspace=$(pwd)
 echo "[$scriptName] \$newTag    : $newTag"
 echo "[$scriptName] \$workspace : $workspace"
 
-test="`sestatus | grep 'SELinux status' 2>&1`"
+test="`sestatus 2>&1`"
 if [[ "$test" == *"not found"* ]]; then
 	echo "[$scriptName] sestatus   : (not installed)"
 else
+	test="`sestatus | grep 'SELinux status' 2>&1`"
 	IFS=' ' read -ra ADDR <<< $test
 	test=${ADDR[2]}
 	echo "[$scriptName] sestatus   : $test"
 fi	
 
 # If a build number is not passed, use the CDAF emulator
+executeExpression "export MSYS_NO_PATHCONV=1"
 executeExpression "docker run --tty --user $(id -u) --volume ${workspace}:/solution/workspace ${buildImage}:${newTag} ./automation/processor/buildPackage.sh $BUILDNUMBER $REVISION $ACTION"
 
 echo "[$scriptName] List and remove all stopped containers"

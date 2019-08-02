@@ -132,10 +132,104 @@ else
 	echo "$scriptName :   containerBuild  : (not defined in $solutionRoot/CDAF.solution)"
 fi
 
+# Support for image as an environment variable, do not overwrite if already set
+containerImage=$($AUTOMATION_ROOT/remote/getProperty.sh "./$solutionRoot/CDAF.solution" "containerImage")
+if [ -z "$containerImage" ]; then
+	echo "$scriptName :   containerImage  : (not defined in $solutionRoot/CDAF.solution)"
+else
+	if [ -z $CONTAINER_IMAGE ]; then
+		export CONTAINER_IMAGE="$containerImage"
+		echo "$scriptName :   CONTAINER_IMAGE : $CONTAINER_IMAGE (set to \$containerImage)"
+	else
+		echo "$scriptName :   containerImage  : $containerImage"
+		echo "$scriptName :   CONTAINER_IMAGE : $CONTAINER_IMAGE (not changed as already set)"
+	fi
+fi
+
+configManagementList=$(find $solutionRoot -mindepth 1 -maxdepth 1 -type f -name *.cm)
+if [ -z "$configManagementList" ]; then
+	echo "$scriptName :   CM Driver       : none ($solutionRoot/*.cm)"
+else
+	for propertiesDriver in $configManagementList; do
+		echo "$scriptName :   CM Driver       : $propertiesDriver"
+	done
+fi
+
+pivotList=$(find $solutionRoot -mindepth 1 -maxdepth 1 -type f -name *.pv)
+if [ -z "$pivotList" ]; then
+	echo "$scriptName :   PV Driver       : none ($solutionRoot/*.pv)"
+else
+	for propertiesDriver in $pivotList; do
+		echo "$scriptName :   PV Driver       : $propertiesDriver"
+	done
+fi
+
+echo; echo "$scriptName : Remove working directories"; echo # perform explicit removal as rm -rfv is too verbose
+for packageDir in $(echo "./propertiesForRemoteTasks ./propertiesForLocalTasks"); do
+	if [ -d  "${packageDir}" ]; then
+		echo "  removed ${packageDir}"
+		rm -rf ${packageDir}
+	fi
+done
+
+# Properties generator (added in release 1.7.8, extended to list in 1.8.11)
+for propertiesDriver in $configManagementList; do
+	echo; echo "$scriptName : Generating properties files from ${propertiesDriver}"
+	header=$(head -n 1 ${propertiesDriver})
+	read -ra columns <<<"$header"
+	config=$(tail -n +2 ${propertiesDriver})
+	while read -r line; do
+		read -ra arr <<<"$line"
+		if [[ "${arr[0]}" == 'remote' ]]; then
+			cdafPath="./propertiesForRemoteTasks"
+		else
+			cdafPath="./propertiesForLocalTasks"
+		fi
+		echo "$scriptName :   Generating ${cdafPath}/${arr[1]}"
+		if [ ! -d ${cdafPath} ]; then
+			mkdir -p ${cdafPath}
+		fi
+		for i in "${!columns[@]}"; do
+			if [ $i -gt 1 ]; then # do not create entries for context and target
+				if [ -n "${arr[$i]}" ]; then
+					echo "${columns[$i]}=${arr[$i]}" >> "${cdafPath}/${arr[1]}"
+				fi
+			fi
+		done
+	done < <(echo "$config")
+done
+
+# 1.9.3 add pivoted CM table support
+for propertiesDriver in $pivotList; do
+	echo; echo "$scriptName : Generating properties files from ${propertiesDriver}"
+	IFS=$'\r\n' GLOBIGNORE='*' command eval 'rows=($(cat $propertiesDriver))'
+	read -ra columns <<<"${rows[0]}"
+	read -ra paths <<<"${rows[1]}"
+	for (( i=2; i<=${#rows[@]}; i++ )); do
+		read -ra arr <<<"${rows[$i]}"
+		for (( j=1; j<=${#arr[@]}; j++ )); do
+			if [ -n "${columns[$j]}" ] && [ -n "${arr[$j]}" ] ; then
+				if [[ "${paths[$j]}" == 'remote' ]]; then
+					cdafPath="./propertiesForRemoteTasks"
+				else
+					cdafPath="./propertiesForLocalTasks"
+				fi
+				if [ ! -d "${cdafPath}" ]; then
+					mkdir -p ${cdafPath}
+				fi
+				if [ ! -f "${cdafPath}/${columns[$j]}" ]; then
+					echo "$scriptName :   Generating ${cdafPath}/${columns[$j]}"
+				fi
+				echo "${arr[0]}=${arr[$j]}" >> "${cdafPath}/${columns[$j]}"
+			fi
+		done
+	done
+done
+
 # CDAF 1.7.0 Container Build process
-if [ -n "$containerBuild" ] && [ "$caseinsensitive" != "clean" ]; then
+if [ -n "$containerBuild" ] && [ "$caseinsensitive" != "clean" ] && [ "$caseinsensitive" != "packageonly" ]; then
 	echo
-	echo "$scriptName Execute Container build, this performs cionly, options packageonly and buildonly are ignored."
+	echo "$scriptName Execute Container build, this performs cionly, options clean and packageonly are ignored."
 	executeExpression "$containerBuild"
 
 	imageBuild=$($AUTOMATION_ROOT/remote/getProperty.sh "./$solutionRoot/CDAF.solution" "imageBuild")

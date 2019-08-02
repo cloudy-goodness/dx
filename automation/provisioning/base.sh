@@ -2,7 +2,7 @@
 
 function executeExpression {
 	echo "[$scriptName] $1"
-	eval $1
+	eval "$1"
 	exitCode=$?
 	# Check execution normal, anything other than 0 is an exception
 	if [ "$exitCode" != "0" ]; then
@@ -17,7 +17,7 @@ function executeYumCheck {
 	success='no'
 	while [ "$success" != 'yes' ]; do
 		echo "[$scriptName][$counter] $1"
-		eval $1
+		eval "$1"
 		exitCode=$?
 		# Exit 0 and 100 are both success
 		if [ "$exitCode" == "100" ] || [ "$exitCode" == "0" ]; then
@@ -39,13 +39,19 @@ scriptName='base.sh'
 
 echo "[$scriptName] --- start ---"
 install=$1
-echo "[$scriptName]   install : $install"
+echo "[$scriptName]   install    : $install"
 
 if [ $(whoami) != 'root' ];then
 	elevate='sudo'
-	echo "[$scriptName]   whoami  : $(whoami)"
+	echo "[$scriptName]   whoami     : $(whoami)"
 else
-	echo "[$scriptName]   whoami  : $(whoami) (elevation not required)"
+	echo "[$scriptName]   whoami     : $(whoami) (elevation not required)"
+fi
+
+if [ -n "$http_proxy" ]; then
+	echo "[$scriptName]   http_proxy : $http_proxy"
+else
+	echo "[$scriptName]   http_proxy : (not set)"
 fi
 
 test="`yum --version 2>&1`"

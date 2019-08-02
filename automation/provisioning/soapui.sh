@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 function executeExpression {
 	echo "[$scriptName] $1"
-	eval $1
+	eval "$1"
 	exitCode=$?
 	# Check execution normal, anything other than 0 is an exception
 	if [ "$exitCode" != "0" ]; then
@@ -14,17 +14,29 @@ scriptName='soapui.sh'
 echo "[scriptName] : --- start ---"
 version="$1"
 if [ -z "$version" ]; then
-	echo "version not passed, HALT! Exit with code 1"; exit 1
+	version='5.5.0'
+	echo "[$scriptName]   version    : $version (not supplied, set to default)"
 else
 	echo "[$scriptName]   version    : $version"
 fi
 
 mediaCache="$2"
 if [ -z "$mediaCache" ]; then
-	mediaCache='/provision'
+	mediaCache='/.provision'
 	echo "[$scriptName]   mediaCache : $mediaCache (default)"
 else
 	echo "[$scriptName]   mediaCache : $mediaCache"
+fi
+
+if [ $(whoami) != 'root' ];then
+	elevate='sudo'
+	echo "[$scriptName]   whoami     : $(whoami)"
+else
+	echo "[$scriptName]   whoami     : $(whoami) (elevation not required)"
+fi
+
+if [ ! -d "$mediaCache" ]; then
+	executeExpression "mkdir $mediaCache"
 fi
 
 # Set parameters
@@ -33,14 +45,14 @@ executeExpression "soapuiSource=\"${soapuiVersion}-linux-bin.tar.gz\""
 
 if [ ! -f ${mediaCache}/${soapuiSource} ]; then
 	echo "[$scriptName] Media (${mediaCache}/${soapuiSource}) not found, attempting download ..."
-	executeExpression "curl -s -o ${mediaCache}/${soapuiSource} \"http://smartbearsoftware.com/distrib/soapui/${version}/${soapuiSource}\""
+	executeExpression "curl -s -o ${mediaCache}/${soapuiSource} \"https://s3.amazonaws.com/downloads.eviware/soapuios/${version}/${soapuiSource}\""
 fi
 
 executeExpression "cp \"${mediaCache}/${soapuiSource}\" ."
 executeExpression "tar -xf $soapuiSource"
-executeExpression "sudo mv $soapuiVersion /opt/"
+executeExpression "$elevate mv $soapuiVersion /opt/"
 
 # Configure to directory on the default PATH
-executeExpression "sudo ln -s /opt/$soapuiVersion/ /opt/soapui"
+executeExpression "$elevate ln -s /opt/$soapuiVersion/ /opt/soapui"
 
 echo "[scriptName] : --- end ---"

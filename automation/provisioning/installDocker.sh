@@ -6,7 +6,7 @@ function executeExpression {
 	success='no'
 	while [ "$success" != 'yes' ]; do
 		echo "[$scriptName][$counter] $1"
-		eval $1
+		eval "$1"
 		exitCode=$?
 		# Check execution normal, anything other than 0 is an exception
 		if [ "$exitCode" != "0" ]; then
@@ -26,15 +26,11 @@ function executeExpression {
 
 function executeIgnore {
 	echo "[$scriptName] $1"
-	eval $1
+	eval "$1"
 	exitCode=$?
 	# Check execution normal, warn if exception but do not fail
 	if [ "$exitCode" != "0" ]; then
-		if [ "$exitCode" == "1" ]; then
-			echo "$0 : Warning: Returned $exitCode assuming already installed and continuing ..."
-		else
-			echo "$0 : Error! Returned $exitCode, exiting!"; exit $exitCode 
-		fi
+		echo "$0 : Warning: Returned $exitCode continuing ..."
 	fi
 	return $exitCode
 }
@@ -185,30 +181,24 @@ if [ -z "$package" ]; then
 			executeExpression "$elevate apt-get update"
 			executeExpression "$elevate apt-get install -y docker.io docker-compose"
 
-		else
+		else # latest
 
-			echo "[$scriptName] Specific version only supported for Ubuntu 14"
-			echo "[$scriptName] Install latest from Docker ($install)"
-			echo "[$scriptName] Add the new GPG key"
-			executeExpression "$elevate apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
-	
-			echo "[$scriptName] Update sources for 14.04"
-			executeExpression "$elevate sh -c 'echo "deb https://apt.dockerproject.org/repo ubuntu-trusty main" >> /etc/apt/sources.list.d/docker.list'"
-			
-			echo "[$scriptName] Update apt repository, purge and verify repository"
+			echo "[$scriptName] Install Latest Community Edition for Ubuntu"
+			executeIgnore "$elevate apt-get -y remove docker*"
+			executeIgnore "$elevate apt-get purge -y docker-engine docker docker.io docker-ce"
+			executeIgnore "$elevate apt-get autoremove -y --purge docker-engine docker docker.io docker-ce"
 			executeExpression "$elevate apt-get update"
-			executeExpression "$elevate apt-get purge lxc-docker"
-			executeExpression "apt-cache policy docker-engine"
-		
-			echo "[$scriptName] Install the extras for this architecture linux-image-extra-$(uname -r)"
-			executeExpression '$elevate apt-get install -y linux-image-extra-$(uname -r)'
-	
-			echo "[$scriptName] Docker document states apparmor needs to be installed"
-			executeExpression "$elevate apt-get install -y apparmor"
-	
-			echo "[$scriptName] Docker document states apparmor needs to be installed"
-			executeExpression "$elevate apt-get install -y docker-engine docker-compose"
-			
+			executeExpression "$elevate apt-get install -y apt-transport-https ca-certificates curl software-properties-common"
+			executeExpression "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+			executeExpression "$elevate apt-key fingerprint 0EBFCD88"
+			executeExpression "$elevate add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable'"
+			executeExpression "$elevate apt-get update"
+			executeExpression "$elevate apt-get install -y docker-ce"
+			executeExpression "docker --version"
+ 
+			executeExpression "sudo curl -sL 'https://github.com/docker/compose/releases/download/1.24.0/docker-compose-$(uname -s)-$(uname -m)' -o /usr/local/bin/docker-compose"
+			executeExpression "$elevate chmod +x /usr/local/bin/docker-compose"
+			executeExpression "docker-compose --version"			
 		fi
 		
 	fi

@@ -25,8 +25,7 @@ if [ -f "~/.bashrc" ]; then
 	source ~/.bashrc
 fi
 
-echo
-echo "$scriptName : --------------------"
+echo; echo "$scriptName : --------------------"
 echo "$scriptName : Initialise Emulation"
 echo "$scriptName : --------------------"
 echo "$scriptName :   ACTION              : $ACTION"
@@ -64,15 +63,17 @@ else
 	echo "$solutionRoot (override $solutionRoot/CDAF.solution found)"
 fi
 
-# Delivery Properties Lookup values
-if [ -f "$solutionRoot/deliveryEnv.sh" ]; then
-	environmentDelivery=$($solutionRoot/deliveryEnv.sh)
-	echo "$scriptName :   environmentDelivery : $environmentDelivery (using override $solutionRoot/deliveryEnv.sh)"
-else
-	if [ ! $environmentDelivery ]; then
-		environmentDelivery="LINUX"
+# If not set as an environment variablem, delivery properties Lookup values
+if [ -z "${environmentDelivery}" ]; then
+	if [ -f "$solutionRoot/deliveryEnv.sh" ]; then
+		environmentDelivery=$($solutionRoot/deliveryEnv.sh)
+		echo "$scriptName :   environmentDelivery : $environmentDelivery (using override $solutionRoot/deliveryEnv.sh)"
+	else
+		if [ ! $environmentDelivery ]; then
+			environmentDelivery="LINUX"
+		fi
+		echo "$scriptName :   environmentDelivery : $environmentDelivery (override $solutionRoot/deliveryEnv.sh not found)"
 	fi
-	echo "$scriptName :   environmentDelivery : $environmentDelivery (override $solutionRoot/deliveryEnv.sh not found)"
 fi
 
 # Use a simple text file (${HOME}/buildnumber.counter) for incremental build number
@@ -86,11 +87,10 @@ if [ "$caseinsensitive" != "cdonly" ]; then
 fi
 echo $buildNumber > ${HOME}/buildnumber.counter
 
-if [ -d .git ]; then
-	IFS=' ' read -ra ADDR <<< $(git branch | grep '*')
-	revision="${ADDR[1]}"
+if [ -n "${CDAF_BRANCH_NAME}" ]; then
+	revision=${CDAF_BRANCH_NAME}
 else
-	revision="revision"
+	revision="dev"
 fi
 echo "$scriptName :   buildNumber         : $buildNumber"
 echo "$scriptName :   revision            : $revision"
@@ -128,8 +128,7 @@ fi
 
 # If the Solution is not defined in the CDAF.solution file, do not attempt to derive, instead, throw error.
 if [ -z "$solutionName" ]; then
-	echo
-	echo "$scriptName : solutionName not defined in $solutionRoot/CDAF.solution, exiting with code 3"; exit 3
+	echo; echo "$scriptName : solutionName not defined in $solutionRoot/CDAF.solution, exiting with code 3"; exit 3
 fi
 
 if [ "$caseinsensitive" != "buildonly" ] && [ "$caseinsensitive" != "packageonly" ] && [ "$caseinsensitive" != "clean" ]; then

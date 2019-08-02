@@ -10,7 +10,7 @@ if [ -z "$SOLUTION" ]; then
 	echo "$scriptName : Solution not passed!"
 	exit 1
 else
-	echo "$scriptName :   SOLUTION         : $SOLUTION"
+	echo "$scriptName :   SOLUTION          : $SOLUTION"
 fi
 
 BUILDNUMBER="$2"
@@ -18,33 +18,33 @@ if [ -z "$BUILDNUMBER" ]; then
 	echo "$scriptName : Build Number not passed!"
 	exit 2
 else
-	echo "$scriptName :   BUILDNUMBER      : $BUILDNUMBER"
+	echo "$scriptName :   BUILDNUMBER       : $BUILDNUMBER"
 fi
 
 REVISION="$3"
 if [ -z "$REVISION" ]; then
 	REVISION="Revision"
-	echo "$scriptName :   REVISION         : $REVISION (default)"
+	echo "$scriptName :   REVISION          : $REVISION (default)"
 else
-	echo "$scriptName :   REVISION         : $REVISION"
+	echo "$scriptName :   REVISION          : $REVISION"
 fi
 
 ACTION="$4"
 if [ -z "$ACTION" ]; then
-	echo "$scriptName :   ACTION           : $ACTION"
+	echo "$scriptName :   ACTION            : $ACTION"
 	BUILDENV='BUILDER'
-	echo "$scriptName :   BUILDENV         : $BUILDENV (default because ACTION not supplied)"
+	echo "$scriptName :   BUILDENV          : $BUILDENV (default because ACTION not supplied)"
 else
 	# case insensitive by forcing to uppercase
 	testForClean=$(echo "$ACTION" | tr '[a-z]' '[A-Z]')
 	if [ "$testForClean" == "CLEAN" ]; then
-		echo "$scriptName :   ACTION           : $ACTION (Build Environment will be set to default)"
+		echo "$scriptName :   ACTION            : $ACTION (Build Environment will be set to default)"
 		BUILDENV='BUILDER'
-		echo "$scriptName :   BUILDENV         : $BUILDENV (default)"
+		echo "$scriptName :   BUILDENV          : $BUILDENV (default)"
 	else
 		BUILDENV="$ACTION"
-		echo "$scriptName :   ACTION           : $ACTION"
-		echo "$scriptName :   BUILDENV         : $BUILDENV (derived from action)"
+		echo "$scriptName :   ACTION            : $ACTION"
+		echo "$scriptName :   BUILDENV          : $BUILDENV (derived from action)"
 	fi
 fi
 
@@ -53,12 +53,12 @@ for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
 	directoryName=${i%%/}
 	if [ -f "$directoryName/CDAF.linux" ] ; then
 		AUTOMATIONROOT="$directoryName"
-		echo "$scriptName :   AUTOMATIONROOT   : $AUTOMATIONROOT (CDAF.linux found)"
+		echo "$scriptName :   AUTOMATIONROOT    : $AUTOMATIONROOT (CDAF.linux found)"
 	fi
 done
 if [ -z "$AUTOMATIONROOT" ]; then
 	AUTOMATIONROOT="automation"
-	echo "$scriptName :   AUTOMATIONROOT   : $AUTOMATIONROOT (CDAF.linux not found)"
+	echo "$scriptName :   AUTOMATIONROOT    : $AUTOMATIONROOT (CDAF.linux not found)"
 fi
 
 AUTOMATIONHELPER="$AUTOMATIONROOT/remote"
@@ -72,60 +72,13 @@ for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
 	fi
 done
 
-printf "$scriptName :   Properties Driver : "
-propertiesDriver="$SOLUTIONROOT/properties.cm"
-if [ -f $propertiesDriver ]; then
-	echo "found ($propertiesDriver)"
-else
-	echo "none ($propertiesDriver)"
-fi
-
 echo; echo "$scriptName : CDAF.solution file found in directory $SOLUTIONROOT, load solution properties"
-if [ -f $SOLUTIONROOT/CDAF.solution ]; then
+if [ -f "$SOLUTIONROOT/CDAF.solution" ]; then
 	propertiesList=$($AUTOMATIONHELPER/transform.sh "$SOLUTIONROOT/CDAF.solution")
 	echo; echo "$propertiesList"
 	eval $propertiesList
 else
 	echo; echo "$scriptName : CDAF.solution file not found!"; exit 8823
-fi
-
-echo; echo "$scriptName : Remove working directories"; echo # perform explicit removal as rm -rfv is too verbose
-for packageDir in $(echo "./propertiesForRemoteTasks ./propertiesForLocalTasks"); do
-	if [ -d  "${packageDir}" ]; then
-		echo "  removed ${packageDir}"
-		rm -rf ${packageDir}
-	fi
-done
-
-# Properties generator (added in release 1.7.8)
-if [ -f $propertiesDriver ]; then
-	echo; echo "$scriptName : Generating properties files from ${propertiesDriver}"
-	header=$(head -n 1 ${propertiesDriver})
-	read -ra columns <<<"$header"
-	config=$(tail -n +2 ${propertiesDriver})
-	while read -r line; do
-		read -ra arr <<<"$line"
-		if [[ "${arr[0]}" == 'remote' ]]; then
-			cdafPath="./propertiesForRemoteTasks"
-		else
-			cdafPath="./propertiesForLocalTasks"
-		fi
-		echo "$scriptName : Generating ${cdafPath}/${arr[1]}"
-		if [ ! -d ${cdafPath} ]; then
-			mkdir -p ${cdafPath}
-		fi
-		for i in "${!columns[@]}"; do
-			if [ $i -gt 1 ]; then # do not create entries for context and target
-				echo "${columns[$i]}=${arr[$i]}" >> "${cdafPath}/${arr[1]}"
-			fi
-		done
-	done < <(echo "$config")
-	if [ -d "$SOLUTIONROOT/propertiesForRemoteTasks" ] && [ -d "./propertiesForRemoteTasks/" ]; then
-		echo "$scriptName : Generated properties will be merged with any defined properties in $SOLUTIONROOT/propertiesForRemoteTasks"
-	fi
-	if [ -d "$SOLUTIONROOT/propertiesForLocalTasks" ] && [ -d "./propertiesForLocalTasks/" ]; then
-		echo "$scriptName : Generated properties will be merged with any defined properties in $SOLUTIONROOT/propertiesForLocalTasks"
-	fi
 fi
 
 if [ -f "build.sh" ]; then
@@ -161,54 +114,39 @@ fi
 
 customProjectList="$SOLUTIONROOT/buildProjects"
 
-if [ ! -f "$customProjectList" ]; then
-
-	if [ -f "dirListFile" ]; then
-		rm dirListFile
-	fi
-
-	# If a custom list is not supplied, create initial list from directories in workspace
-    for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
-		echo ${i%%/} >> dirListFile
-	done
+if [ -f "$customProjectList" ]; then
+	dirList=$(cat $customProjectList)
 else
-	cp $customProjectList dirListFile
+	dirList=$(find . -mindepth 1 -maxdepth 1 -type d)
 fi
 
 # Create a list of projects based on directories containing build script entry point
-if [ -f "projectListFile" ]; then
-	rm projectListFile
-fi
-while read DIR; do
-
-	if [ -f "$DIR/build.sh" ] || [ -f "$DIR/build.tsk" ]; then
-		echo $DIR >> projectListFile
+for folder in $dirList; do
+	if [ -f "$folder/build.sh" ] || [ -f "$folder/build.tsk" ]; then
+		projectsToBuild+="$folder "
 	fi
+done
 
-done < dirListFile
-
-# Cleanup temp file
-if [ -f "dirListFile" ]; then
-	rm dirListFile
-fi
-
-if [ -f "projectListFile" ]; then
+if [ -z "$projectsToBuild" ]; then
+	echo; echo "$scriptName : No projects found, no build action attempted."
+else
 	echo "$scriptName :   Projects to process :"; echo
-	cat projectListFile
+	for projectName in $projectsToBuild; do
+		echo "  ${projectName##*/}"
+	done
 
-	while read PROJECT
-	do
-		
-		echo; echo "$scriptName : --- BUILD $PROJECT ---"; echo
-		cd $PROJECT
+	for projectName in $projectsToBuild; do
+		projectName=${projectName##*/}
+		echo; echo "$scriptName : --- BUILD ${projectName} ---"; echo
+		cd ${projectName}
 		exitCode=$?
 		if [ $exitCode -ne 0 ]; then
-			echo "$scriptName : cd $PROJECT failed! Exit code = $exitCode."
+			echo "$scriptName : cd ${projectName} failed! Exit code = $exitCode."
 			exit $exitCode
 		fi
 
 		# Additional properties that are not passed as arguments, but loaded by execute automatically, to use in build.sh, explicit load is required		
-		echo "PROJECT=$PROJECT" > ../build.properties
+		echo "PROJECT=${projectName}" > ../build.properties
 		echo "REVISION=$REVISION" >> ../build.properties
 		echo "AUTOMATIONROOT=$AUTOMATIONROOT" >> ../build.properties
 		echo "SOLUTIONROOT=$SOLUTIONROOT" >> ../build.properties
@@ -218,7 +156,7 @@ if [ -f "projectListFile" ]; then
 			./build.sh "$SOLUTION" "$BUILDNUMBER" "$BUILDENV" "$ACTION"
 			exitCode=$?
 			if [ $exitCode -ne 0 ]; then
-				echo "$scriptName : $PROJECT Build Failed, exit code = $exitCode."
+				echo "$scriptName : $projectName Build Failed, exit code = $exitCode."
 				exit $exitCode
 			fi
 			
@@ -227,28 +165,19 @@ if [ -f "projectListFile" ]; then
 			../$AUTOMATIONHELPER/execute.sh "$SOLUTION" "$BUILDNUMBER" "$BUILDENV" "build.tsk" "$ACTION" 2>&1
 			exitCode=$?
 			if [ $exitCode -ne 0 ]; then
-				echo "$scriptName : Linear deployment activity ($AUTOMATIONHELPER/execute.sh $SOLUTION $BUILDNUMBER $PROJECT build.tsk) failed! Returned $exitCode"
+				echo "$scriptName : Linear deployment activity ($AUTOMATIONHELPER/execute.sh $SOLUTION $BUILDNUMBER $projectName build.tsk) failed! Returned $exitCode"
 				exit $exitCode
 			fi
 		fi
 		
 		cd ..
 	
-		lastProject=$(echo $PROJECT)
+		lastProject=$(echo $projectName)
 	
-	done < projectListFile
+	done
 	
 	if [ -z $lastProject ]; then
-		echo
-		echo "$scriptName : No projects found containing build.sh, no build action attempted."
-		echo
+		echo; echo "$scriptName : No projects found containing build.sh, no build action attempted."
 	fi
-	
-	# Cleanup temp file
-	rm projectListFile
-
-else
-
-	echo; echo "$scriptName : No projects found, no build action attempted."; echo
 
 fi

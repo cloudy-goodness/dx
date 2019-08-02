@@ -6,7 +6,7 @@ function executeExpression {
 	success='no'
 	while [ "$success" != 'yes' ]; do
 		echo "[$scriptName][$counter] $1"
-		eval $1
+		eval "$1"
 		exitCode=$?
 		# Check execution normal, anything other than 0 is an exception
 		if [ "$exitCode" != "0" ]; then
@@ -29,7 +29,7 @@ function executeYumCheck {
 	success='no'
 	while [ "$success" != 'yes' ]; do
 		echo "[$scriptName][$counter] $1"
-		eval $1
+		eval "$1"
 		exitCode=$?
 		# Exit 0 and 100 are both success
 		if [ "$exitCode" == "100" ] || [ "$exitCode" == "0" ]; then
@@ -48,7 +48,7 @@ function executeYumCheck {
 
 function executeIgnore {
 	echo "[$scriptName] $1"
-	eval $1
+	eval "$1"
 	exitCode=$?
 	# Check execution normal, warn if exception but do not fail
 	if [ "$exitCode" != "0" ]; then
@@ -59,6 +59,15 @@ function executeIgnore {
 		fi
 	fi
 	return $exitCode
+}
+
+function installPiP {
+	executeExpression "curl -s -O https://bootstrap.pypa.io/get-pip.py"
+	if [ "$1" == "2" ]; then
+		executeExpression "$elevate python get-pip.py"
+	else
+		executeExpression "$elevate python${1} get-pip.py"
+	fi
 }
 
 scriptName='installPython.sh'
@@ -125,13 +134,7 @@ if [ -n "$test" ]; then
 		test=${ADDR[1]}
 		echo "[$scriptName] PIP version $test already installed."
 	else
-		executeExpression "curl -s -O https://bootstrap.pypa.io/get-pip.py"
-		if [ "$version" == "2" ]; then
-			executeExpression "$elevate python get-pip.py"
-		else
-			executeExpression "$elevate python${version} get-pip.py"
-		fi
-		executeExpression "pip --version"
+		installPiP $version
 	fi
 else	
 
@@ -179,11 +182,11 @@ else
 				executeExpression "$elevate apt-get update"
 				executeExpression "$elevate apt-get install -y python2.7"
 				executeExpression "$elevate ln -s \$(which python2.7) /usr/bin/python"
-				executeExpression "curl -s -O https://bootstrap.pypa.io/get-pip.py"
-				executeExpression "$elevate python${version} get-pip.py"
+				installPiP ${version}
 			else
 				# 16.04 and above
-				executeExpression "$elevate -y python-software-properties"
+				executeExpression "$elevate apt-get install -y python-minimal"
+				installPiP ${version}
 			fi
 
 		else # Python != v2
@@ -209,8 +212,7 @@ else
 		fi
 
 		executeExpression "$elevate yum install -y python${version}*"
-		executeExpression "curl -s -O https://bootstrap.pypa.io/get-pip.py"
-		executeExpression "$elevate python${version} get-pip.py"
+		installPiP ${version}
 		executeExpression "$elevate pip install virtualenv"
 	fi
 	
@@ -223,13 +225,13 @@ else
 		executeExpression "python3 --version"
 		executeExpression "pip3 --version"
 	fi
-fi	
+fi
 
 if [ ! -z "$install" ]; then
 	if [ "$version" == "2" ]; then
 		executeExpression "pip install $install"
 	else
-		executeExpression "pip${$version} install $install"
+		executeExpression "pip${version} install $install"
 	fi
 fi
  

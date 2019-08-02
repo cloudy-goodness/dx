@@ -2,7 +2,7 @@
 
 function executeExpression {
 	echo "$1"
-	eval $1
+	eval "$1"
 	exitCode=$?
 	# Check execution normal, anything other than 0 is an exception
 	if [ "$exitCode" != "0" ]; then
@@ -17,7 +17,7 @@ function execute100Ignore {
 	success='no'
 	while [ "$success" != 'yes' ]; do
 		echo "[$counter] $1"
-		eval $1
+		eval "$1"
 		exitCode=$?
 		# Exit 0 and 100 are both success
 		if [ "$exitCode" == "100" ] || [ "$exitCode" == "0" ]; then
@@ -68,9 +68,9 @@ fi
 install="$2"
 if [ -z "$install" ]; then
 	if [ "$sdk" == 'yes' ]; then
-		default='dotnet-sdk-2.1'
+		default='dotnet-sdk-2.2'
 	else
-		default='aspnetcore-runtime-2.1'
+		default='aspnetcore-runtime-2.2'
 	fi	
 	install=$default
 	echo "[$scriptName]   install : $install (default)"
