@@ -33,6 +33,36 @@ else
 	TASKLIST=$4
 fi
 
+function DECRYP {
+	# Decrypt a file
+	#  required : file to descrypt
+	#  optional : AES key, if not supplied will try SSH decrypt using $HOME/.ssl/private_key.pem
+	./decryptKey.sh "$1" "$2"
+	if [ "$exitCode" != "0" ]; then
+		echo "$0 : Exception! decryptKey.sh $1 $2 returned $exitCode"
+		exit $exitCode
+	fi
+}  
+
+function DETOKN {
+	# Detokenise a file
+	#  required : file to be detokenised
+	#  optional : properties file, by default the TARGET is used
+	#  optional : AES key
+	if [ -z "$1" ]; then
+		echo "Token file not supplied!"; exit 3523
+	fi
+	if [ -z "$2" ]; then
+		propertyFile=$TARGET
+	else
+		propertyFile=$2
+	fi
+	./transform.sh "$propertyFile" "$1" "$3"
+	if [ "$exitCode" != "0" ]; then
+		echo "$0 : Exception! ./transform.sh $1 $2 $3 returned $exitCode"
+		exit $exitCode
+	fi
+}
 echo
 echo "~~~~~~ Starting Execution Engine ~~~~~~~"
 echo
@@ -61,28 +91,29 @@ echo "$scriptName :   TMPDIR      : $TMPDIR"
 
 # If this is a CI process, load temporary file as variables (implicit parameter passing) 
 # this is not required in the PowerShell version as variables are global
-AUTOMATIONHELPER=.
 if [ -f "../build.properties" ] ;then
 	echo; echo "$scriptName : Load ../build.properties"; echo
 	eval $(cat ../build.properties)
-	AUTOMATIONHELPER="../$AUTOMATIONROOT/remote"
+	AUTOMATIONHELPER="$( cd "$(dirname "$0")" ; pwd -P )"
 	propertiesList=$($AUTOMATIONHELPER/transform.sh ../build.properties)
 	printf "$propertiesList"
 	eval $propertiesList
-	rm ../build.properties
 	echo
+	rm ../build.properties
 else
 	# If not build, is it a package process?
 	if [ -f "./solution.properties" ] ;then
 		echo; echo "$scriptName : Load ./solution.properties"; echo
 		eval $(cat ./solution.properties)
-		AUTOMATIONHELPER="./$AUTOMATIONROOT/remote"
+		AUTOMATIONHELPER="$( cd "$(dirname "$0")" ; pwd -P )"
 		propertiesList=$($AUTOMATIONHELPER/transform.sh ./solution.properties)
 		printf "$propertiesList"
 		eval $propertiesList
+		echo
 		rm ./solution.properties
 	else
 		# Neither build nor package, load target properties, i.e. it's either local or remote
+		AUTOMATIONHELPER=.
 		if [ -f "predeploy.properties" ]; then
 			echo; echo "Load predeploy.properties ... "
 			propertiesList=$($AUTOMATIONHELPER/transform.sh "predeploy.properties")
@@ -165,15 +196,6 @@ while read LINE; do
 		EXECUTABLESCRIPT="cp -vR ${LINE:7}"
 	fi
 
-	# Decrypt a file
-	#  required : directory, file location relative to current workspace
-	#  optional : file, is not will try file with the same name as target in the directory
-	if [ "$feature" == "DECRYP" ]; then
-		printf "$LINE ==> "
-		EXECUTABLESCRIPT='RESULT=$(./decryptKey.sh $TARGET '
-		EXECUTABLESCRIPT+="${LINE:7})"
-	fi
-
 	# Invoke a custom script
 	if [ "$feature" == "INVOKE" ]; then
 		printf "$LINE ==> "
@@ -209,28 +231,6 @@ while read LINE; do
 		(*)
     	    EXECUTABLESCRIPT+=" $deployHost $deployUser $scriptLine"
 		    ;;
-		esac
-	fi
-
-	# Detokenise a file
-	#  required : file to be detokenised
-	#  optional : properties file, by default the TARGET is used
-	if [ "$feature" == "DETOKN" ]; then
-		printf "$LINE ==> "
-		scriptLine="${LINE:7}"
-		sep=' '
-		
-		case $scriptLine in
-		(*"$sep"*)
-			tokenFile=${scriptLine%%"$sep"*}
-    	    properties=${scriptLine#*"$sep"}
-    	    EXECUTABLESCRIPT='./transform.sh '
-    	    EXECUTABLESCRIPT+="$properties $tokenFile"
-    	    ;;
-		(*)
-    	    EXECUTABLESCRIPT='./transform.sh '
-    	    EXECUTABLESCRIPT+="$TARGET $scriptLine"
-			;;
 		esac
 	fi
 
@@ -283,11 +283,9 @@ while read LINE; do
 		if [ -n "$EXECUTABLESCRIPT" ]; then
 			# Do not echo line if it is an echo itself or it is determining controlled exit
 			if [ "${LINE:0:4}" != "echo" ] && [ "$feature" != "EXITIF" ]; then
-				if [ "${LINE:0:2}" != "if" ] && [ "${LINE:0:3}" != "for" ]; then
-					echo $(eval echo "$EXECUTABLESCRIPT")
-				else
-					echo "$EXECUTABLESCRIPT"
-				fi
+# This leaks secrets, but I have left it should someone need to temporarilty use it for debugging					
+#				echo $(eval echo "$EXECUTABLESCRIPT")
+				echo "$EXECUTABLESCRIPT"
 			fi
 		else
 			# Do not add whitespace line feed when script has a comment

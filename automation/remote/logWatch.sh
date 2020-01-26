@@ -48,31 +48,43 @@ lastLineNumber=0
 exitCode=4366
 while [ $retryCount -le $retryMax ] && [ $exitCode -ne 0 ]; do
 	sleep $wait
-	output=$(cat $logFile)
-	if [ -z "$output" ]; then
-		echo "[$scriptName]   no output ..."
-    else
-		lineCount=1
-		while read -r line; do
-	    	if [ $lineCount -gt $lastLineNumber ]; then
-				echo "> $line"
-				lastLineNumber=$lineCount
-			fi	
-			let "lineCount=lineCount+1"
-		done < <(echo "$output")
-	
-		found=$(echo $output | grep "$stringMatch")
-	    if [ ! -z "$found" ]; then
-			echo "[$scriptName] stringMatch ($stringMatch) found."
-		    exitCode=0
+	if [ ! -f $logFile ]; then
+		echo "[$scriptName]   logfile $logFile does not exist ..."
+	else
+		output=$(cat $logFile)
+		if [ -z "$output" ]; then
+			echo "[$scriptName]   no output ..."
+	    else
+			lineCount=1
+			while read -r line; do
+		    	if [ $lineCount -gt $lastLineNumber ]; then
+					echo "> $line"
+					lastLineNumber=$lineCount
+				fi	
+				let "lineCount=lineCount+1"
+			done < <(echo "$output")
+
+			found=$(echo $output | grep "CDAF_DELIVERY_FAILURE.")
+		    if [ ! -z "$found" ]; then
+				echo "[$scriptName] CDAF_DELIVERY_FAILURE. detected, exiting with code 8336. Wait time was ${waitTime}."
+			    exitCode=8336
+			    retryCount=$retryMax
+			else
+				found=$(echo $output | grep "$stringMatch")
+			    if [ ! -z "$found" ]; then
+					echo "[$scriptName] stringMatch ($stringMatch) found."
+				    exitCode=0
+				fi
+			fi
 		fi
 	fi
 
 	if [ $retryCount -ge $retryMax ]; then
-		echo "[$scriptName] Maximum wait time ($waitTime) reached after $retryMax retries, exiting with code 334"
-		exitCode=335
+		echo "[$scriptName] Maximum wait time ($waitTime) reached after $retryMax retries, exiting with code $waitTime (waitTime)"
+		exitCode=$waitTime
 	fi
 	let "retryCount=retryCount+1"
 done
 
 echo; echo "[$scriptName] --- end ---"
+exit $exitCode

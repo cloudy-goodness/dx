@@ -49,17 +49,8 @@ else
 fi
 
 # Look for automation root definition, if not found, default
-for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
-	directoryName=${i%%/}
-	if [ -f "$directoryName/CDAF.linux" ] ; then
-		AUTOMATIONROOT="$directoryName"
-		echo "$scriptName :   AUTOMATIONROOT    : $AUTOMATIONROOT (CDAF.linux found)"
-	fi
-done
-if [ -z "$AUTOMATIONROOT" ]; then
-	AUTOMATIONROOT="automation"
-	echo "$scriptName :   AUTOMATIONROOT    : $AUTOMATIONROOT (CDAF.linux not found)"
-fi
+AUTOMATIONROOT="$(dirname $( cd "$(dirname "$0")" ; pwd -P ))"
+echo "$scriptName :   AUTOMATIONROOT    : $AUTOMATIONROOT (derived from action)"
 
 AUTOMATIONHELPER="$AUTOMATIONROOT/remote"
 
@@ -130,7 +121,7 @@ done
 if [ -z "$projectsToBuild" ]; then
 	echo; echo "$scriptName : No projects found, no build action attempted."
 else
-	echo "$scriptName :   Projects to process :"; echo
+	echo; echo "$scriptName :   Projects to process :"; echo
 	for projectName in $projectsToBuild; do
 		echo "  ${projectName##*/}"
 	done
@@ -147,13 +138,12 @@ else
 
 		# Additional properties that are not passed as arguments, but loaded by execute automatically, to use in build.sh, explicit load is required		
 		echo "PROJECT=${projectName}" > ../build.properties
-		echo "REVISION=$REVISION" >> ../build.properties
 		echo "AUTOMATIONROOT=$AUTOMATIONROOT" >> ../build.properties
 		echo "SOLUTIONROOT=$SOLUTIONROOT" >> ../build.properties
 
 		if [ -f "build.sh" ]; then
 		
-			./build.sh "$SOLUTION" "$BUILDNUMBER" "$BUILDENV" "$ACTION"
+			./build.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$BUILDENV" "$ACTION"
 			exitCode=$?
 			if [ $exitCode -ne 0 ]; then
 				echo "$scriptName : $projectName Build Failed, exit code = $exitCode."
@@ -162,7 +152,8 @@ else
 			
 		else
 						
-			../$AUTOMATIONHELPER/execute.sh "$SOLUTION" "$BUILDNUMBER" "$BUILDENV" "build.tsk" "$ACTION" 2>&1
+			echo "REVISION=$REVISION" >> ../build.properties
+			$AUTOMATIONHELPER/execute.sh "$SOLUTION" "$BUILDNUMBER" "$BUILDENV" "build.tsk" "$ACTION" 2>&1
 			exitCode=$?
 			if [ $exitCode -ne 0 ]; then
 				echo "$scriptName : Linear deployment activity ($AUTOMATIONHELPER/execute.sh $SOLUTION $BUILDNUMBER $projectName build.tsk) failed! Returned $exitCode"

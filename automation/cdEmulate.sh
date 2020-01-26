@@ -28,28 +28,18 @@ fi
 echo; echo "$scriptName : --------------------"
 echo "$scriptName : Initialise Emulation"
 echo "$scriptName : --------------------"
-echo "$scriptName :   ACTION              : $ACTION"
+echo "$scriptName :   ACTION         : $ACTION"
 caseinsensitive=$(echo "$ACTION" | tr '[A-Z]' '[a-z]')
 
 workDirLocal="TasksLocal"
 workDirRemote="TasksRemote"
 
 # Framework structure
-# Look for automation root definition, if not found, default
-for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
-	directoryName=${i%%/}
-	if [ -f "$directoryName/CDAF.linux" ]; then
-		automationRoot="$directoryName"
-		echo "$scriptName :   automationRoot      : $automationRoot (CDAF.linux found)"
-	fi
-done
-if [ -z "$automationRoot" ]; then
-	automationRoot="./automation"
-	echo "$scriptName :   automationRoot      : $automationRoot (CDAF.linux not found)"
-fi
+automationRoot="$( cd "$(dirname "$0")" ; pwd -P )"
+echo "$scriptName :   automationRoot : $automationRoot"
 
 # Check for user defined solution folder, i.e. outside of automation root, if found override solution root
-printf "$scriptName :   solutionRoot        : "
+printf "$scriptName :   solutionRoot   : "
 for i in $(ls -d */); do
 	directoryName=${i%%/}
 	if [ -f "$directoryName/CDAF.solution" ]; then
@@ -64,15 +54,15 @@ else
 fi
 
 # If not set as an environment variablem, delivery properties Lookup values
-if [ -z "${environmentDelivery}" ]; then
+if [ -z "${CDAF_DELIVERY}" ]; then
 	if [ -f "$solutionRoot/deliveryEnv.sh" ]; then
-		environmentDelivery=$($solutionRoot/deliveryEnv.sh)
-		echo "$scriptName :   environmentDelivery : $environmentDelivery (using override $solutionRoot/deliveryEnv.sh)"
+		CDAF_DELIVERY=$($solutionRoot/deliveryEnv.sh)
+		echo "$scriptName :   CDAF_DELIVERY  : $CDAF_DELIVERY (using override $solutionRoot/deliveryEnv.sh)"
 	else
-		if [ ! $environmentDelivery ]; then
-			environmentDelivery="LINUX"
+		if [ ! $CDAF_DELIVERY ]; then
+			CDAF_DELIVERY="LINUX"
 		fi
-		echo "$scriptName :   environmentDelivery : $environmentDelivery (override $solutionRoot/deliveryEnv.sh not found)"
+		echo "$scriptName :   CDAF_DELIVERY  : $CDAF_DELIVERY (override $solutionRoot/deliveryEnv.sh not found)"
 	fi
 fi
 
@@ -90,13 +80,13 @@ echo $buildNumber > ${HOME}/buildnumber.counter
 if [ -n "${CDAF_BRANCH_NAME}" ]; then
 	revision=${CDAF_BRANCH_NAME}
 else
-	revision="dev"
+	revision="release"
 fi
-echo "$scriptName :   buildNumber         : $buildNumber"
-echo "$scriptName :   revision            : $revision"
+echo "$scriptName :   buildNumber    : $buildNumber"
+echo "$scriptName :   revision       : $revision"
 
 # Check for customised CI process
-printf "$scriptName :   ciProcess           : "
+printf "$scriptName :   ciProcess      : "
 if [ -f "$solutionRoot/buildPackage.sh" ]; then
 	cdProcess="$solutionRoot/buildPackage.sh"
 	echo "$ciProcess (override)"
@@ -106,7 +96,7 @@ else
 fi
 
 # Check for customised Delivery process
-printf "$scriptName :   cdProcess           : "
+printf "$scriptName :   cdProcess      : "
 if [ -f "$solutionRoot/delivery.sh" ]; then
 	cdProcess="$solutionRoot/delivery.sh"
 	echo "$cdProcess (override)"
@@ -150,7 +140,7 @@ if [ "$caseinsensitive" != "buildonly" ] && [ "$caseinsensitive" != "packageonly
     echo 'For Jenkins ...'
     echo "  Command : $ciProcess \$BUILD_NUMBER \$JOB_NAME"
     echo
-	echo 'For Team Foundation Server (TFS)/Visual Studio Team Services (VSTS)'
+	echo 'Azure DevOps (formerly TFS/VSTS)'
 	echo '  Set the build name to the solution, to assure known workspace name in Release phase.'
     echo '  Use the visual studio template and delete the nuget and VS tasks.'
     echo '  Instructions are based on default VS layout, i.e. repo, solution, projects, with the solution in the repo root.'
@@ -203,7 +193,7 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
     echo '  Name    : TasksLocal'
 	echo '  Pattern : TasksLocal/**'
 	echo
-    echo 'For Team Foundation Server (TFS)/Visual Studio Team Services (VSTS)'
+    echo 'For Azure DevOps (formerly TFS/VSTS)'
     echo '  Use the combination of Copy files and Retain Artefacts from Visual Studio Solution Template'
     echo "  Source Folder   : \$(Agent.BuildDirectory)/s/"
     echo '  Copy files task : TasksLocal/**'
@@ -229,7 +219,7 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
 	echo
 	echo 'For TeamCity ...'
 	echo "  Command Executable : $workDirLocal/$cdInstruction"
-	echo "  Command parameters : $environmentDelivery"
+	echo "  Command parameters : $CDAF_DELIVERY"
 	echo
 	echo 'For Go ...'
 	echo '  requires explicit bash invoke'
@@ -253,12 +243,12 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
 	echo '    Command : eval $(./TasksLocal/transform.sh ./TasksLocal/manifest.txt)'
 	echo '    Command : ./TasksLocal/delivery.sh $JOB_NAME $BUILDNUMBER'
 	echo
-	echo 'For Team Foundation Server (TFS)/Visual Studio Team Services (VSTS)'
+	echo 'For Azure DevOps (formerly TFS/VSTS)'
 	echo '  Verify the queue for each Environment definition, and ensure Environment names do not contain spaces.'
 	echo '  Create an "Empty" Release definition, and use the "Command Line" utility task (note, requires double quote when more than one argument).'
-	echo '    Tool           : bash'
-	echo '    Arguments      : -c "chmod +x *.sh && ls -al"'
-	echo "    Working folder : \$(System.DefaultWorkingDirectory)/$solutionName/drop/TasksLocal"
+	echo '    Tool           : Run'
+	echo '    Script         : chmod +x **/*.sh && ./TasksLocal/delivery.sh $RELEASE_ENVIRONMENTNAME $RELEASE_RELEASENAME'
+	echo "    Working folder : \$(System.DefaultWorkingDirectory)/$solutionName/drop"
 	echo
 	echo '  then add "Shell Script" utility task to execute the delivery process'
 	echo "    Command Filename  : \$(System.DefaultWorkingDirectory)/$solutionName/drop/$workDirLocal/$cdInstruction"
@@ -279,10 +269,10 @@ if [ "$caseinsensitive" != "cionly" ] && [ "$caseinsensitive" != "buildonly" ] &
 	echo "$scriptName : -------------------------------------------------------"
 
 	if [ "$caseinsensitive" != "cionly" ]; then
-		$cdProcess "$environmentDelivery"
+		$cdProcess "$CDAF_DELIVERY"
 		exitCode=$?
 		if [ $exitCode -ne 0 ]; then
-			echo "$scriptName : CD Failed! $cdProcess \"$environmentDelivery\". Halt with exit code = $exitCode."
+			echo "$scriptName : CD Failed! $cdProcess \"$CDAF_DELIVERY\". Halt with exit code = $exitCode."
 			exit $exitCode
 		fi
 	fi

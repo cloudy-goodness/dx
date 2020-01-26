@@ -24,19 +24,12 @@ echo "$scriptName :   hostname        : $(hostname)"
 echo "$scriptName :   whoami          : $(whoami)"
 
 # Processed out of order as needed for solution determination
-AUTOMATION_ROOT="$5"
-if [ -z $AUTOMATION_ROOT ]; then
-	for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
-		directoryName=${i%%/}
-		if [ -f "$directoryName/CDAF.linux" ]; then
-			AUTOMATION_ROOT="$directoryName"
-			rootLogging="$AUTOMATION_ROOT (CDAF.linux found)"
-		fi
-	done
-	if [ -z "$AUTOMATION_ROOT" ]; then
-		AUTOMATION_ROOT="automation"
-		rootLogging="$AUTOMATION_ROOT (CDAF.linux not found)"
-	fi
+AUTOMATIONROOT="$5"
+if [ -z $AUTOMATIONROOT ]; then
+	AUTOMATIONROOT="$(dirname $( cd "$(dirname "$0")" ; pwd -P ))"
+	rootLogging="$AUTOMATIONROOT (derived from script path)"
+else
+	rootLogging="$AUTOMATIONROOT (passed)"
 fi
 
 # Check for user defined solution folder, i.e. outside of automation root, if found override solution root
@@ -47,7 +40,7 @@ for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
 	fi
 done
 if [ -z "$solutionRoot" ]; then
-	solutionRoot="$AUTOMATION_ROOT/solution"
+	solutionRoot="$AUTOMATIONROOT/solution"
 	solutionMessage="$solutionRoot (default, project directory containing CDAF.solution not found)"
 else
 	solutionMessage="$solutionRoot ($solutionRoot/CDAF.solution found)"
@@ -83,7 +76,7 @@ if [[ $SOLUTION == *'$'* ]]; then
 	SOLUTION=$(eval echo $SOLUTION)
 fi
 if [ -z $SOLUTION ]; then
-	SOLUTION=$($AUTOMATION_ROOT/remote/getProperty.sh "./$solutionRoot/CDAF.solution" "solutionName")
+	SOLUTION=$($AUTOMATIONROOT/remote/getProperty.sh "$solutionRoot/CDAF.solution" "solutionName")
 	exitCode=$?
 	if [ "$exitCode" != "0" ]; then
 		echo "$scriptName : Read of SOLUTION from $solutionRoot/CDAF.solution failed! Returned $exitCode"
@@ -95,7 +88,7 @@ else
 fi 
 
 # Use passed argument to determine if a value was passed or if a default was set and used above
-echo "$scriptName :   AUTOMATION_ROOT : $rootLogging"
+echo "$scriptName :   AUTOMATIONROOT  : $rootLogging"
 
 LOCAL_WORK_DIR="$6"
 if [ -z $LOCAL_WORK_DIR ]; then
@@ -113,10 +106,10 @@ else
 	echo "$scriptName :   REMOTE_WORK_DIR : $REMOTE_WORK_DIR"	
 fi
 
-echo "$scriptName :   CDAF Version    : $($AUTOMATION_ROOT/remote/getProperty.sh "$AUTOMATION_ROOT/CDAF.linux" "productVersion")"
+echo "$scriptName :   CDAF Version    : $($AUTOMATIONROOT/remote/getProperty.sh "$AUTOMATIONROOT/CDAF.linux" "productVersion")"
 
 # If a container build command is specified, use this instead of CI process
-containerBuild=$($AUTOMATION_ROOT/remote/getProperty.sh "./$solutionRoot/CDAF.solution" "containerBuild")
+containerBuild=$($AUTOMATIONROOT/remote/getProperty.sh "$solutionRoot/CDAF.solution" "containerBuild")
 if [ -n "$containerBuild" ]; then
 	test=$(docker --version 2>&1)
 	if [[ "$test" == *"not found"* ]]; then
@@ -127,13 +120,30 @@ if [ -n "$containerBuild" ]; then
 		IFS=',' read -ra ADDR <<< ${ADDR[2]}
 		dockerRun="${ADDR[0]}"
 		echo "$scriptName :   Docker          : $dockerRun"
+		# Test Docker is running
+		echo "[$scriptName] List all current images"
+		echo "docker images"
+		docker images
+		if [ "$?" != "0" ]; then
+			if [ -z $CDAF_DOCKER_REQUIRED ]; then
+				echo "$scriptName : Docker installed but not running, will attempt to execute natively (set CDAF_DOCKER_REQUIRED if docker is mandatory)"
+				unset containerBuild
+			else
+				echo "$scriptName : Docker installed but not running, CDAF_DOCKER_REQUIRED is set so will try and start"
+				if [ $(whoami) != 'root' ];then
+					elevate='sudo'
+				fi
+				executeExpression "$elevate service docker start"
+				executeExpression "$elevate service docker status"
+			fi
+		fi
 	fi
 else
 	echo "$scriptName :   containerBuild  : (not defined in $solutionRoot/CDAF.solution)"
 fi
 
 # Support for image as an environment variable, do not overwrite if already set
-containerImage=$($AUTOMATION_ROOT/remote/getProperty.sh "./$solutionRoot/CDAF.solution" "containerImage")
+containerImage=$($AUTOMATIONROOT/remote/getProperty.sh "$solutionRoot/CDAF.solution" "containerImage")
 if [ -z "$containerImage" ]; then
 	echo "$scriptName :   containerImage  : (not defined in $solutionRoot/CDAF.solution)"
 else
@@ -232,10 +242,10 @@ if [ -n "$containerBuild" ] && [ "$caseinsensitive" != "clean" ] && [ "$caseinse
 	echo "$scriptName Execute Container build, this performs cionly, options clean and packageonly are ignored."
 	executeExpression "$containerBuild"
 
-	imageBuild=$($AUTOMATION_ROOT/remote/getProperty.sh "./$solutionRoot/CDAF.solution" "imageBuild")
+	imageBuild=$($AUTOMATIONROOT/remote/getProperty.sh "$solutionRoot/CDAF.solution" "imageBuild")
 	if [ -n "$containerBuild" ]; then
 		echo
-		echo "$scriptName Execute Image build, as defined for imageBuild in $solutionRoot\CDAF.solution"
+		echo "$scriptName Execute Image build, as defined for imageBuild in $solutionRoot/CDAF.solution"
 		executeExpression "$imageBuild"
 	else
 		echo "$scriptName :   imageBuild      : (not defined in $solutionRoot/CDAF.solution)"
@@ -244,11 +254,11 @@ else
 	if [ "$caseinsensitive" == "packageonly" ]; then
 		echo; echo "$scriptName action is ${ACTION}, do not perform build."
 	else
-		$AUTOMATION_ROOT/buildandpackage/buildProjects.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$ACTION"
+		$AUTOMATIONROOT/buildandpackage/buildProjects.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$ACTION"
 		exitCode=$?
 		if [ $exitCode -ne 0 ]; then
 			echo
-			echo "$scriptName : Project(s) Build Failed! $AUTOMATION_ROOT/buildandpackage/buildProjects.sh \"$SOLUTION\" \"$BUILDNUMBER\" \"$REVISION\" \"$ACTION\". Halt with exit code = $exitCode. "
+			echo "$scriptName : Project(s) Build Failed! $AUTOMATIONROOT/buildandpackage/buildProjects.sh \"$SOLUTION\" \"$BUILDNUMBER\" \"$REVISION\" \"$ACTION\". Halt with exit code = $exitCode. "
 			exit $exitCode
 		fi
 	fi
@@ -256,11 +266,11 @@ else
 	if [ "$caseinsensitive" == "buildonly" ]; then
 		echo "$scriptName action is ${ACTION}, do not perform package."
 	else
-		$AUTOMATION_ROOT/buildandpackage/package.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$LOCAL_WORK_DIR" "$REMOTE_WORK_DIR" "$ACTION"
+		$AUTOMATIONROOT/buildandpackage/package.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$LOCAL_WORK_DIR" "$REMOTE_WORK_DIR" "$ACTION"
 		exitCode=$?
 		if [ $exitCode -ne 0 ]; then
 			echo
-			echo "$scriptName : Solution Package Failed! $AUTOMATION_ROOT/buildandpackage/package.sh \"$SOLUTION\" \"$BUILDNUMBER\" \"$REVISION\" \"$LOCAL_WORK_DIR\" \"$REMOTE_WORK_DIR\" \"$ACTION\". Halt with exit code = $exitCode."
+			echo "$scriptName : Solution Package Failed! $AUTOMATIONROOT/buildandpackage/package.sh \"$SOLUTION\" \"$BUILDNUMBER\" \"$REVISION\" \"$LOCAL_WORK_DIR\" \"$REMOTE_WORK_DIR\" \"$ACTION\". Halt with exit code = $exitCode."
 			exit $exitCode
 		fi
 	fi

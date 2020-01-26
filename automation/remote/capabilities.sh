@@ -29,10 +29,23 @@ fi
 if [ -f '/etc/centos-release' ]; then
 	echo "[$scriptName]   distro   : $(cat /etc/centos-release)"
 else
-	test=$(lsb_release --all | grep Description)
-	IFS=' ' read -ra ADDR <<< $test
-	test=${ADDR[1]}
-	echo "[$scriptName]   distro   : $test"
+	if [ -f '/etc/redhat-release' ]; then
+		echo "[$scriptName]   distro   : $(cat /etc/redhat-release)"
+	else
+		test="`lsb_release --all 2>&1`"
+		if [[ "$test" == *"not found"* ]]; then
+			if [ -f /etc/issue ]; then
+				echo "[$scriptName]   distro   : $(cat /etc/issue)"
+			else
+				echo "[$scriptName]   distro   : $(uname -a)"
+			fi
+		else
+			test=echo "$test" | grep Description
+			IFS=' ' read -ra ADDR <<< $test
+			test=${ADDR[1]}
+			echo "[$scriptName]   distro   : $test"
+		fi	
+	fi
 fi
 
 IFS=$'\n'

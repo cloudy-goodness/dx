@@ -15,6 +15,7 @@ localGenPropDir="./propertiesForLocalTasks"
 solutionCustomDir="$SOLUTIONROOT/custom"
 localCustomDir="$SOLUTIONROOT/customLocal"
 localCryptDir="$SOLUTIONROOT/cryptLocal"
+cryptDir="$SOLUTIONROOT/crypt"
 remotePropertiesDir="$SOLUTIONROOT/propertiesForRemoteTasks"
 remoteGenPropDir="./propertiesForRemoteTasks"
 
@@ -47,6 +48,13 @@ if [ -d  "$localCryptDir" ]; then
 	echo "found ($localCryptDir)"
 else
 	echo "none ($localCryptDir)"
+fi
+
+printf "$scriptName :   common encrypted files      : "
+if [ -d  "$cryptDir" ]; then
+	echo "found ($cryptDir)"
+else
+	echo "none ($cryptDir)"
 fi
 
 printf "$scriptName :   custom scripts              : "
@@ -143,6 +151,13 @@ if [ -d "$localCryptDir" ]; then
 	cp -avR $localCryptDir/* $WORK_DIR_DEFAULT/${localCryptDir##*/}
 fi
 
+# CDAF 1.9.5 common encypted files
+if [ -d "$cryptDir" ]; then
+	printf "$scriptName :   Local encrypted files : "	
+	mkdir -v $WORK_DIR_DEFAULT/${cryptDir##*/}
+	cp -avR $cryptDir/* $WORK_DIR_DEFAULT/${cryptDir##*/}
+fi
+
 # CDAF 1.7.3 Solution Custom scripts, included in Local and Remote
 if [ -d "$solutionCustomDir" ]; then
 	printf "$scriptName :   Custom scripts        : "	
@@ -189,11 +204,11 @@ if [ $exitCode -ne 0 ]; then
 fi
 
 # Process Specific Local artifacts
-./$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $localArtifactListFile $WORK_DIR_DEFAULT
+$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $localArtifactListFile $WORK_DIR_DEFAULT
 
 # 1.7.8 Process generic artifacts, i.e. applies to both local and remote
 if [ -f "${SOLUTIONROOT}/storeFor" ]; then
-	./$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT
+	$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT
 fi
 
 # If zipLocal property set in CDAF.solution of any build property, then a package will be created from the local takss

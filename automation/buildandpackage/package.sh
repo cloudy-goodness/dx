@@ -39,7 +39,6 @@ fi
 # Action is optional
 ACTION="$6"
 
-echo
 echo "$scriptName : +-----------------+"
 echo "$scriptName : | Package Process |"
 echo "$scriptName : +-----------------+"
@@ -51,20 +50,11 @@ echo "$scriptName :   REMOTE_WORK_DIR          : $REMOTE_WORK_DIR"
 echo "$scriptName :   ACTION                   : $ACTION"
 
 # Look for automation root definition, if not found, default
-for i in $(ls -d */); do
-	directoryName=${i%%/}
-	if [ -f "$directoryName/CDAF.linux" ]; then
-		AUTOMATIONROOT="$directoryName"
-		echo "$scriptName :   AUTOMATIONROOT           : $AUTOMATIONROOT (CDAF.linux found)"
-	fi
-done
-if [ -z "$AUTOMATIONROOT" ]; then
-	AUTOMATIONROOT="automation"
-	echo "$scriptName :   AUTOMATIONROOT           : $AUTOMATIONROOT (CDAF.linux not found)"
-fi
+AUTOMATIONROOT="$(dirname $( cd "$(dirname "$0")" ; pwd -P ))"
+echo "$scriptName :   AUTOMATIONROOT           : $AUTOMATIONROOT"
 
 # Process all entry values
-automationHelper="./$AUTOMATIONROOT/remote"
+automationHelper="$AUTOMATIONROOT/remote"
 SOLUTIONROOT="$AUTOMATIONROOT/solution"
 for i in $(ls -d */); do
 	directoryName=${i%%/}
@@ -98,7 +88,7 @@ else
 	echo "none ($remotePropertiesDir)"
 fi
 
-remoteArtifactListFile="./$SOLUTIONROOT/storeForRemote"
+remoteArtifactListFile="$SOLUTIONROOT/storeForRemote"
 printf "$scriptName :   remote artifact list     : "
 if [ -f  "$remoteArtifactListFile" ]; then
 	echo "found ($remoteArtifactListFile)"
@@ -106,7 +96,7 @@ else
 	echo "none ($remoteArtifactListFile)"
 fi
 
-genericArtifactListFile="./$SOLUTIONROOT/storeFor"
+genericArtifactListFile="$SOLUTIONROOT/storeFor"
 printf "$scriptName :   generic artifact list    : "
 if [ -f  "$genericArtifactListFile" ]; then
 	echo "found ($genericArtifactListFile)"
@@ -169,7 +159,7 @@ else
 	while read line; do echo "  $line"; done < manifest.txt
 	
 	echo; echo "$scriptName : Always create local artefacts, even if all tasks are remote"; echo
-	./$AUTOMATIONROOT/buildandpackage/packageLocal.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$LOCAL_WORK_DIR" "$SOLUTIONROOT" "$AUTOMATIONROOT"
+	$AUTOMATIONROOT/buildandpackage/packageLocal.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$LOCAL_WORK_DIR" "$SOLUTIONROOT" "$AUTOMATIONROOT"
 	exitCode=$?
 	if [ $exitCode -ne 0 ]; then
 		echo "$scriptName : ./packageLocal.sh failed! Exit code = $exitCode."
@@ -179,7 +169,7 @@ else
 	# 1.7.8 Only create the remote package if there is a remote target folder or a artefact definition list, if folder exists
 	# create the remote package (even if there are no target files within it)
 	if [ -d  "$remotePropertiesDir" ] || [ -f "$remoteArtifactListFile" ] || [ -f "$genericArtifactListFile" ]; then
-		./$AUTOMATIONROOT/buildandpackage/packageRemote.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$REMOTE_WORK_DIR" "$SOLUTIONROOT" "$AUTOMATIONROOT"
+		$AUTOMATIONROOT/buildandpackage/packageRemote.sh "$SOLUTION" "$BUILDNUMBER" "$REVISION" "$REMOTE_WORK_DIR" "$SOLUTIONROOT" "$AUTOMATIONROOT"
 		exitCode=$?
 		if [ $exitCode -ne 0 ]; then
 			echo "$scriptName : ./packageRemote.sh failed! Exit code = $exitCode."

@@ -9,10 +9,11 @@ WORK_DIR_DEFAULT=$4
 SOLUTIONROOT=$5
 AUTOMATIONROOT=$6
 
-solutionCustomDir="./$SOLUTIONROOT/custom"
-remoteCustomDir="./$SOLUTIONROOT/customRemote"
-remoteCryptDir="./$SOLUTIONROOT/cryptRemote"
-remoteArtifactListFile="./$SOLUTIONROOT/storeForRemote"
+solutionCustomDir="$SOLUTIONROOT/custom"
+remoteCustomDir="$SOLUTIONROOT/customRemote"
+remoteCryptDir="$SOLUTIONROOT/cryptRemote"
+cryptDir="$SOLUTIONROOT/crypt"
+remoteArtifactListFile="$SOLUTIONROOT/storeForRemote"
 
 echo; echo "$scriptName : --- PACKAGE remotely executed scripts and artifacts ---"
 echo "$scriptName :   WORK_DIR_DEFAULT            : $WORK_DIR_DEFAULT"
@@ -45,18 +46,25 @@ else
 	echo "none ($remoteCryptDir)"
 fi
 
+printf "$scriptName :   common encrypted files      : "
+if [ -d  "$cryptDir" ]; then
+	echo "found ($cryptDir)"
+else
+	echo "none ($cryptDir)"
+fi
+
 echo; echo "$scriptName : Create working directory and seed with solution files"
 mkdir -v $WORK_DIR_DEFAULT
 mv -v manifest.txt $WORK_DIR_DEFAULT
 cp -v $AUTOMATIONROOT/CDAF.linux $WORK_DIR_DEFAULT/CDAF.properties
 echo
-cp -avR ./$AUTOMATIONROOT/remote/* $WORK_DIR_DEFAULT
+cp -avR $AUTOMATIONROOT/remote/* $WORK_DIR_DEFAULT
 
 # Merge Remote tasks with general tasks, remote first
-if [ -f  "./$SOLUTIONROOT/tasksRunRemote.tsk" ]; then
+if [ -f  "$SOLUTIONROOT/tasksRunRemote.tsk" ]; then
 	echo
 	printf "Tasks to execute on remote host : "	
-	cp -av ./$SOLUTIONROOT/tasksRunRemote.tsk $WORK_DIR_DEFAULT
+	cp -av $SOLUTIONROOT/tasksRunRemote.tsk $WORK_DIR_DEFAULT
 fi
 
 # 1.7.8 Merge generic tasks into explicit tasks
@@ -69,6 +77,13 @@ if [ -d  "$remoteCryptDir" ]; then
 	echo
 	echo "$scriptName :   Remote encrypted files in $remoteCryptDir: "	
 	cp -avR $remoteCryptDir/* $WORK_DIR_DEFAULT
+fi
+
+# CDAF 1.9.5 common encrypted files
+if [ -d  "$cryptDir" ]; then
+	echo
+	echo "$scriptName :   Remote encrypted files in $cryptDir: "	
+	cp -avR $cryptDir/* $WORK_DIR_DEFAULT
 fi
 
 # CDAF 1.7.3 Solution Custom scripts, included in Local and Remote
@@ -85,11 +100,11 @@ if [ -d  "$remoteCustomDir" ]; then
 fi
 
 # Process Specific remote artifacts
-./$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $remoteArtifactListFile $WORK_DIR_DEFAULT
+$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $remoteArtifactListFile $WORK_DIR_DEFAULT
 
 # Process generic artifacts, i.e. applies to both local and remote
 if [ -f "${SOLUTIONROOT}/storeFor" ]; then
-	./$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT
+	$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT
 fi
 
 cd $WORK_DIR_DEFAULT
