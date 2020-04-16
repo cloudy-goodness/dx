@@ -31,6 +31,7 @@ if [ -z $AUTOMATIONROOT ]; then
 else
 	rootLogging="$AUTOMATIONROOT (passed)"
 fi
+export CDAF_AUTOMATION_ROOT=$AUTOMATIONROOT
 
 # Check for user defined solution folder, i.e. outside of automation root, if found override solution root
 for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
@@ -156,7 +157,7 @@ else
 	fi
 fi
 
-configManagementList=$(find $solutionRoot -mindepth 1 -maxdepth 1 -type f -name *.cm)
+configManagementList=$(find $solutionRoot -mindepth 1 -maxdepth 1 -type f -name "*.cm")
 if [ -z "$configManagementList" ]; then
 	echo "$scriptName :   CM Driver       : none ($solutionRoot/*.cm)"
 else
@@ -165,7 +166,7 @@ else
 	done
 fi
 
-pivotList=$(find $solutionRoot -mindepth 1 -maxdepth 1 -type f -name *.pv)
+pivotList=$(find $solutionRoot -mindepth 1 -maxdepth 1 -type f -name "*.pv")
 if [ -z "$pivotList" ]; then
 	echo "$scriptName :   PV Driver       : none ($solutionRoot/*.pv)"
 else

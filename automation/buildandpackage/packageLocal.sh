@@ -204,15 +204,15 @@ if [ $exitCode -ne 0 ]; then
 fi
 
 # Process Specific Local artifacts
-$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $localArtifactListFile $WORK_DIR_DEFAULT
+$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $localArtifactListFile $WORK_DIR_DEFAULT $AUTOMATIONROOT
 
 # 1.7.8 Process generic artifacts, i.e. applies to both local and remote
 if [ -f "${SOLUTIONROOT}/storeFor" ]; then
-	$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT
+	$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT $AUTOMATIONROOT
 fi
 
-# If zipLocal property set in CDAF.solution of any build property, then a package will be created from the local takss
-zipLocal=$($WORK_DIR_DEFAULT/getProperty.sh "$WORK_DIR_DEFAULT/manifest.txt" 'zipLocal')
+# If zipLocal property set in CDAF.solution of any build property, then a package will be created from the local tasks
+zipLocal=$($AUTOMATIONROOT/remote/getProperty.sh "$WORK_DIR_DEFAULT/manifest.txt" 'zipLocal')
 if [ "$zipLocal" ]; then
 	echo ; echo "$scriptName : Create the package (tarball) file, excluding git or svn control files"; echo
 	cd $WORK_DIR_DEFAULT

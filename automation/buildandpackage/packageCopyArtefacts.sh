@@ -2,11 +2,18 @@
 set -e
 scriptName=$(basename $0)
 
+function exitIfCR {
+	echo "$0 : Exception! $1 contains a return character!"
+	exit 6612
+}  
+
 # Arguments are not validated in sub-scripts, only at entry point
 DRIVER=$1
 WORK_DIR_DEFAULT=$2
+AUTOMATIONROOT=$3
 
 if [ -f  "$DRIVER" ]; then
+	grep -q $'\r' $DRIVER && exitIfCR $DRIVER
 	echo; echo "[$scriptName] Copy artifacts defined in $DRIVER"; echo
 	config=$(cat ${DRIVER}) # cat will read all lines, native READ will miss lines that done have line-feed
 	while read -r line; do
@@ -56,13 +63,20 @@ if [ -f  "$DRIVER" ]; then
 				fi
 				# The target maybe a parent path of an existing artefact definition, so test for existing 
 				if [ ! -d "$targetPath" ]; then
-					mkdir -pv $targetPath
+					command="mkdir -pv $targetPath"
+					eval $command
+					exitCode=$?
+					if [ $exitCode -ne 0 ]; then
+						echo "[$scriptName] $command failed! Exit code = $exitCode."
+						exit $exitCode
+					fi
 				fi
 			fi
-			cp $copyParent -av $source $targetPath
+			command="cp $copyParent -av $source $targetPath"
+			eval "cp $copyParent -av $source $targetPath"
 			exitCode=$?
 			if [ $exitCode -ne 0 ]; then
-				echo "[$scriptName] cp $copyParent -av $source $targetPath failed! Exit code = $exitCode."
+				echo "[$scriptName] $command failed! Exit code = $exitCode."
 				exit $exitCode
 			fi
 			
