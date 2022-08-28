@@ -15,10 +15,7 @@ When using for the first time, the users workstation needs to be prepared by pro
 
 # Solution Driver
 
-The following files control solution level functionality.
-
-    CDAF.linux : used by the CD emulator to determine the automation root directory  
-    CDAF.solution : optional file to identify a directory as the automation solution directory, if contains property solutionName, this will be used in the emulator
+See [Solution Properties](https://docs.cdaf.io/mydoc_solution_properties.html)
 
 Basic driver files (introduced 1.7.8):
 
@@ -30,38 +27,14 @@ Properties and definition files support comments, prefixed with # character.
 
 ## Execution Engine
 
-To alleviate the burden of argument passing, exception handling and logging, the execution engine has been provided. The execution engine will essentially execute the native interpretive language (PowerShell or bash), line by line, but each execution will be tested for exceptions (trivial in bash, significantly more complex in PowerShell) and, with careful usage, the driver files (.tsk) can be used on Windows workstations, while target Linux servers for Continuous Delivery. To provide translated runtime, the following keywords are supported
-
-| Keyword | Description                       | Example                         |
-| --------|-----------------------------------|---------------------------------|
-| ASSIGN  | set a variable                    | ASSIGN $test="Hello World"      |
-| CMPRSS  | Compress directory to file        | CMPRSS packageName dirName      |
-| DCMPRS  | Decompress package file           | DCMPRS packageName              |
-| DECRYP  | decrypt using private_key.pem     | DECRYP crypt/encrypt.dat        |
-|         | decrypt using AES key             | DECRYP crypt/encrypt.dat $key   |
-| DETOKN  | Detokenise file with target prop  | DETOKN token.yml                |
-|         | Detokenise with specific file     | DETOKN token.yml PROP_FILE      |
-|         | Detokenise with encrypted file    | DETOKN token.yml crypt/FIL $key |
-| EXCREM  | Execute command                   | EXCREM hostname                 |
-|         | Execute script                    | EXCREM ./capabilities.sh        |
-| EXITIF  | Exit normally if argument set     | EXITIF $ACTION                  |
-|         | Exit normally if set to value     | EXITIF $ACTION clean            |
-| INVOKE  | call a custom script              | INVOKE ./script "Hello"         |
-| MAKDIR  | Create a directory and path (opt) | MAKDIR directory/and/path       |
-| PROPLD  | Load properties as variables      | PROPLD prop.file                |
-| REMOVE  | Delete files, including wildcard  | REMOVE *.war                    |
-| REPLAC  | Replace token in file   		  | REPLAC fileName %token% $value  |
-| VECOPY  | Verbose copy					  | VECOPY *.war                    |
-
-Runtime variables, automatically set
-
-| Variable         | Description                       |
-| -----------------|-----------------------------------|
-|  $TMPDIR         | Automatically set to the temp dir |
+See [Execution Engine is docs](https://docs.cdaf.io/mydoc_basics_execution_engine.html)
 
 ## Build and Package (once)
 
 buildProjects : optional, all directories containing build.sh or build.tsk will be processed
+
+	prebuild.tsk : optional pre-build tasks definition (2.4.4)
+	postbuild.tsk : optional pre-build tasks definition (2.4.4)
 
 Linear Deploy requires properties file for workstation (default is DEV) to be a match (not partial match as per repeatable local and remote processes). transform.sh utility can be used to load all defined properties.
 
@@ -95,17 +68,32 @@ Encrypted files (for passwords)
 	/cryptRemoteRemote
 	/cryptRemoteLocal
 
-Custom elements, i,.e. deployScriptOverride and deployTaskOverride scripts
+Custom elements, i.e. deployScriptOverride and deployTaskOverride scripts
 
 	/custom
 	/customRemote
 	/customLocal
+
+## Common Functions
+
+VARCHK varlistFileName example file
+
+    # Plain text values
+    OPT_ARG                                # Optional plain text
+    terraform_version=required             # Required plain text
+
+    # Secret values
+    TERRAFORM_TOKEN=optional               # Optional secret
+    TERRAFORM_TOKEN=secret                 # Required secret
+    TERRAFORM_TOKEN=$TERRAFORM_TOKEN_MD5   # Required secret verified against supplied MD5 value
 
 # Continuous Delivery Emulation
 
 To support Continuous Delivery, the automation of Deployment is required, to automate deployment, the automation of packaging is required, and to automate packaging, the automation of build is required.
 
 ## Build and Package  
+
+To produce a self-extracting shell script for deployment, set artifactPrefix in CDAF.solution
 
 ### Automated Build
 
@@ -137,3 +125,15 @@ The automation of deployment uses ssh to create a remote connection to each targ
 ## Local Tasks
 
 Executed from the current host, i.e. the build server or agent, and may connect to remove hosts through direct protocols, i.e. WebDAV, ODBC/JDBC, HTTP(S), etc.
+
+## Feature Branch Environments
+
+Only available when using Git aware entry.ps1. If file feature-branch.properties is found in solution root, each matching branch name prefix will be deployed to the defined environment in the CI process. Example contents
+
+    # Separate environments for features and bugs
+    feature=DEV1
+    bugfix=DEV2
+
+    # Hotfixes deploy to all environments
+    hotfix=DEV1
+    hotfix=DEV2

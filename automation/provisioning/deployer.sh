@@ -18,6 +18,13 @@ else
 	echo "[$scriptName]   deployUser   : $deployUser"
 fi
 
+if [ "$deployerSide" != 'server' ]; then
+	userExists=$(id -u $deployUser 2> /dev/null )
+	if [ -z "$userExists" ]; then
+		echo "[$scriptName] $deployUser not found!"; exit 6654
+	fi
+fi
+
 deployLand="$3"
 if [ -z "$deployLand" ]; then
 	deployLand='/opt/packages/'

@@ -7,7 +7,7 @@ function executeExpression {
 	exitCode=$?
 	# Check execution normal, anything other than 0 is an exception
 	if [ "$exitCode" != "0" ]; then
-		echo "$scriptName : Exception! $EXECUTABLESCRIPT returned $exitCode"
+		echo "[$scriptName] Exception! $EXECUTABLESCRIPT returned $exitCode"
 		exit $exitCode
 	fi
 }  
@@ -22,6 +22,7 @@ if [ -z "$imageName" ]; then
 	echo "[$scriptName] imageName not passed, exiting with code 1."
 	exit 1
 else
+	imageName=$(echo "$imageName" | tr '[:upper:]' '[:lower:]')
 	echo "[$scriptName] imageName   : $imageName"
 fi
 

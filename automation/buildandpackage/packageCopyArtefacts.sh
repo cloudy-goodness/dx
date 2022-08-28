@@ -13,6 +13,17 @@ WORK_DIR_DEFAULT=$2
 AUTOMATIONROOT=$3
 
 if [ -f  "$DRIVER" ]; then
+	echo; echo "[$scriptName] Load variables from manifest"; echo
+	fileWithoutComments=$(sed -e 's/#.*$//' -e '/^ *$/d' manifest.txt)
+	while read -r LINE; do
+		IFS="\="
+		read -ra array <<< "$LINE"
+		propertiesList="${array[0]}=\"${array[1]}\""
+		echo "  ${propertiesList}"
+		eval "$propertiesList"
+	done < <(echo "$fileWithoutComments")
+	unset IFS
+
 	grep -q $'\r' $DRIVER && exitIfCR $DRIVER
 	echo; echo "[$scriptName] Copy artifacts defined in $DRIVER"; echo
 	config=$(cat ${DRIVER}) # cat will read all lines, native READ will miss lines that done have line-feed
@@ -22,6 +33,7 @@ if [ -f  "$DRIVER" ]; then
 		ARTIFACT=$(sed -e 's/#.*$//' -e '/^ *$/d' <<< $line)
 
 		if [ ! -z "$ARTIFACT" ]; then
+			set -f # disable globbing, i.e. do not preprocess definitions containing wildcards
 			# There must be a more elegant way to do this, but the current implementation is to overcome variable expansion when containing / character(s)
 			declare -a artArray=${ARTIFACT};
 			x=0
@@ -29,18 +41,19 @@ if [ -f  "$DRIVER" ]; then
 			unset flat
 			unset recurse
 			unset copyParent
-			for i in ${artArray[@]}; do 
+			for element in ${artArray[@]}; do 
 				# First element in array is treated as the source
 				if [ $x -eq 0 ]; then
-					source=$(echo $i);
+					source=$(echo "$element");
 				else
 					# options are case insensitive
-					option=$(echo "$i" | tr '[a-z]' '[A-Z]')
+					option=$(echo "$element" | tr '[a-z]' '[A-Z]')
 					if [ "$option" == "-RECURSE" ]; then recurse="on"; fi
 					if [ "$option" == "-FLAT" ]; then flat="on"; fi
 				fi
 				x=$((x + 1))
 			done
+
 			# In CDAF for Windows (PowerShell), recursive processing is explicitly  
 	 		# coded, in bash it is a native function, for consistency -recurse is looked for
 	 		# but no action performed, in the future I may support -recurse & -flat to allow a
@@ -73,6 +86,7 @@ if [ -f  "$DRIVER" ]; then
 				fi
 			fi
 			command="cp $copyParent -av $source $targetPath"
+			set +f # enable globbing for copy operation
 			eval "cp $copyParent -av $source $targetPath"
 			exitCode=$?
 			if [ $exitCode -ne 0 ]; then

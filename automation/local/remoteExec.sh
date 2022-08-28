@@ -29,43 +29,43 @@ else
 	echo "$scriptName deployCommand : $deployCommand"
 fi
 
-if [ -n "$4" ]; then
+if [ ! -z "$4" ]; then
 	arg1=$4
 	echo "$scriptName arg1          : $arg1"
 fi
 
-if [ -n "$5" ]; then
+if [ ! -z "$5" ]; then
 	arg2=$5
 	echo "$scriptName arg2          : $arg2"
 fi
 
-if [ -n "$6" ]; then
+if [ ! -z "$6" ]; then
 	arg3=$6
 	echo "$scriptName arg3          : $arg3"
 fi
 
-if [ -n "$7" ]; then
+if [ ! -z "$7" ]; then
 	arg4=$7
 	echo "$scriptName arg4          : $arg4"
 fi
 
-if [ -n "$8" ]; then
+if [ ! -z "$8" ]; then
 	arg5=$8
 	echo "$scriptName arg5          : $arg5"
 fi
 
-if [ -n "$9" ]; then
+if [ ! -z "$9" ]; then
 	arg6=$9
 	echo "$scriptName arg6          : $arg6"
 fi
 
 if [[ $deployHost == *'$'* ]]; then
 	deployHost=$(eval echo $deployHost)
-	echo "$scriptName :   deployHost : $deployHost (evaluated)"
+	echo "[$scriptName]   deployHost : $deployHost (evaluated)"
 fi
 if [[ $deployUser == *'$'* ]]; then
 	deployUser=$(eval echo $deployUser)
-	echo "$scriptName :   deployUser : $deployUser (evaluated)"
+	echo "[$scriptName]   deployUser : $deployUser (evaluated)"
 fi
 
 # Process the deployHost, stripping out the port if passed, i.e. localhost:2222
@@ -85,22 +85,22 @@ echo
 # If a command is passed, then just execute, is command is a local script, execute that script on the remote target
 extension="${deployCommand##*.}"
 if [ "$extension" != 'sh' ]; then
-	echo "$scriptName : Executing command ..."
+	echo "[$scriptName] Executing command ..."
 	echo
 	# -n to stop ssh consuming standard in, i.e. when being executed from within execute.sh
 	ssh -n -p $deployPort -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $deployUser@$deployHost "$deployCommand $arg1 $arg2 $arg3 $arg4 $arg5 $arg6"
 	exitCode=$?
 	if [ "$exitCode" != "0" ]; then
-		echo "$scriptName : ssh $deployUser@$deployHost \"$deployCommand $arg1 $arg2 $arg3 $arg4 $arg5 $arg6\" failed! Returned $exitCode"
+		echo "[$scriptName] ssh $deployUser@$deployHost \"$deployCommand $arg1 $arg2 $arg3 $arg4 $arg5 $arg6\" failed! Returned $exitCode"
 		exit $exitCode
 	fi
 else
-	echo "$scriptName : Executing shell script ..."
+	echo "[$scriptName] Executing shell script ..."
 	echo
 	ssh -p $deployPort -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $deployUser@$deployHost 'cat | bash /dev/stdin ' "$arg1 $arg2 $arg3 $arg4 $arg5 $arg6" < $deployCommand 
 	exitCode=$?
 	if [ "$exitCode" != "0" ]; then
-		echo "$scriptName : ssh $deployUser@$deployHost \'cat | bash /dev/stdin \' \"$arg1 $arg2 $arg3 $arg4 $arg5 $arg6\" < $deployCommand failed! Returned $exitCode"
+		echo "[$scriptName] ssh $deployUser@$deployHost \'cat | bash /dev/stdin \' \"$arg1 $arg2 $arg3 $arg4 $arg5 $arg6\" < $deployCommand failed! Returned $exitCode"
 		exit $exitCode
 	fi
 fi

@@ -1,26 +1,37 @@
 #!/usr/bin/env bash
 
 function executeExpression {
-	echo "[$scriptName] $1"
+	echo "$1"
 	eval $1
 	exitCode=$?
 	# Check execution normal, anything other than 0 is an exception
 	if [ "$exitCode" != "0" ]; then
-		echo "$scriptName : Exception! $EXECUTABLESCRIPT returned $exitCode"
+		echo "[$scriptName][ERROR] Exception! $1 returned $exitCode"
 		exit $exitCode
 	fi
 }  
 
-scriptName=${0##*/}
+function executeSuppress {
+	echo "$1"
+	eval $1
+	exitCode=$?
+	# Check execution normal, anything other than 0 is an exception
+	if [ "$exitCode" != "0" ]; then
+		echo "[$scriptName][WARN] $1 returned $exitCode"
+		exit $exitCode
+	fi
+}  
 
-echo; echo "[$scriptName] Build docker image, resulting image naming \${imageName}"
-echo
+scriptName='dockerBuild.sh'
+
+echo; echo "[$scriptName] Build docker image, resulting image tag will be ${imageName}:${tag}"; echo
 echo "[$scriptName] --- start ---"
 imageName=$1
 if [ -z "$imageName" ]; then
 	echo "[$scriptName] imageName not supplied, exit with code 1."
 	exit 1
 else
+	imageName=$(echo "$imageName" | tr '[:upper:]' '[:lower:]')
 	echo "[$scriptName] imageName : $imageName"
 fi
 
@@ -33,7 +44,7 @@ fi
 
 version=$3
 if [ -z "$version" ]; then
-	if [ -n "$tag" ]; then
+	if [ ! -z "$tag" ]; then
 		version=$tag
 	    echo "[$scriptName] version   : $version (not supplied, defaulted to tag)"
 	else
@@ -69,9 +80,15 @@ else
 	echo "[$scriptName] userID    : $userID"
 fi
 
+echo; echo "[$scriptName] List existing images..."
+executeExpression "docker images -f label=cdaf.${imageName}.image.version"
+
+echo "[$scriptName] As of 1.13.0 new prune commands, if using older version, suppress error"
+executeSuppress "docker system prune -f"
+
 buildCommand='docker build'
 
-if [ -n "$tag" ]; then
+if [ ! -z "$tag" ]; then
 	buildCommand+=" --build-arg BUILD_TAG=${tag}"
 fi
 
@@ -79,34 +96,29 @@ if [ "$rebuild" == 'yes' ]; then
 	buildCommand+=" --no-cache=true"
 fi
 
-if [ -n "$userName" ]; then
+if [ ! -z "$userName" ]; then
 	buildCommand+=" --build-arg userName=$userName"
 fi
 
-if [ -n "$userID" ]; then
+if [ ! -z "$userID" ]; then
 	buildCommand+=" --build-arg userID=$userID"
 fi
 
-if [ -n "$tag" ]; then
+if [ ! -z "$tag" ]; then
 	buildCommand+=" --tag ${imageName}:${tag}"
 else
 	buildCommand+=" --tag ${imageName}"
 fi
 
-if [ -n "$http_proxy" ]; then
-	echo; echo "[$scriptName] \$http_proxy is set (${http_proxy}), pass as \$proxy to build"
-	buildCommand+=" --build-arg proxy=${http_proxy}"
-else
-	if [ -n "$HTTP_PROXY" ]; then
-		echo; echo "[$scriptName] \$HTTP_PROXY is set (${HTTP_PROXY}), pass as \$proxy to build"
-		buildCommand+=" --build-arg proxy=${HTTP_PROXY}"
-	fi
-fi
-
-if [ -n "$CONTAINER_IMAGE" ]; then
+if [ ! -z "$CONTAINER_IMAGE" ]; then
 	echo; echo "[$scriptName] \$CONTAINER_IMAGE is set (${CONTAINER_IMAGE}), pass as \$CONTAINER_IMAGE to build"
 	buildCommand+=" --build-arg CONTAINER_IMAGE=${CONTAINER_IMAGE}"
 fi
+
+for envVar in $(env | grep CDAF_IB_); do
+	envVar=$(echo ${envVar//CDAF_IB_})
+	buildCommand+=" --build-arg ${envVar}"
+done
 
 if [ "$version" != 'dockerfile' ]; then
 	# Apply required label for CDAF image management
@@ -115,8 +127,8 @@ fi
 
 echo
 executeExpression "$buildCommand ."
-echo
-echo "[$scriptName] List Resulting images..."
+
+echo; echo "[$scriptName] List Resulting images..."
 executeExpression "docker images -f label=cdaf.${imageName}.image.version"
-echo
-echo "[$scriptName] --- end ---"
+
+echo; echo "[$scriptName] --- end ---"

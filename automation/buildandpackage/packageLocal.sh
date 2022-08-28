@@ -1,5 +1,15 @@
+function executeExpression {
+	eval "$1"
+	exitCode=$?
+	# Check execution normal, anything other than 0 is an exception
+	if [ "$exitCode" != "0" ]; then
+		echo "[$scriptName][ERROR][$exitCode] $1"
+		exit $exitCode
+	fi
+}  
+
 #!/usr/bin/env bash
-scriptName=${0##*/}
+scriptName='packageLocal.sh'
 
 # Arguments are not validated in sub-scripts, only at entry point
 SOLUTION=$1
@@ -18,79 +28,95 @@ localCryptDir="$SOLUTIONROOT/cryptLocal"
 cryptDir="$SOLUTIONROOT/crypt"
 remotePropertiesDir="$SOLUTIONROOT/propertiesForRemoteTasks"
 remoteGenPropDir="./propertiesForRemoteTasks"
+containerPropertiesDir="$SOLUTIONROOT/propertiesForContainerTasks"
+containerGenPropDir="./propertiesForContainerTasks"
 
-echo "$scriptName : --- PACKAGE locally executed scripts and artefacts ---"; echo
-echo "$scriptName :   WORK_DIR_DEFAULT            : $WORK_DIR_DEFAULT"
+echo "[$scriptName] --- PACKAGE locally executed scripts and artefacts ---"; echo
+echo "[$scriptName]   WORK_DIR_DEFAULT               : $WORK_DIR_DEFAULT"
 
-printf "$scriptName :   local artifact list         : "
+printf "[$scriptName]   local artifact list            : "
 if [ -f  "$localArtifactListFile" ]; then
 	echo "found ($localArtifactListFile)"
 else
 	echo "none ($localArtifactListFile)"
 fi
 
-printf "$scriptName :   Properties for local tasks  : "
+printf "[$scriptName]   Properties for local tasks     : "
 if [ -d  "$localPropertiesDir" ]; then
 	echo "found ($localPropertiesDir)"
 else
 	echo "none ($localPropertiesDir)"
 fi
 
-printf "$scriptName :   Generated local properties  : "
+printf "[$scriptName]   Generated local properties     : "
 if [ -d  "$localGenPropDir" ]; then
 	echo "found ($localGenPropDir)"
 else
 	echo "none ($localGenPropDir)"
 fi
 
-printf "$scriptName :   local encrypted files       : "
+printf "[$scriptName]   local encrypted files          : "
 if [ -d  "$localCryptDir" ]; then
 	echo "found ($localCryptDir)"
 else
 	echo "none ($localCryptDir)"
 fi
 
-printf "$scriptName :   common encrypted files      : "
+printf "[$scriptName]   common encrypted files         : "
 if [ -d  "$cryptDir" ]; then
 	echo "found ($cryptDir)"
 else
 	echo "none ($cryptDir)"
 fi
 
-printf "$scriptName :   custom scripts              : "
+printf "[$scriptName]   custom scripts                 : "
 if [ -d  "$solutionCustomDir" ]; then
 	echo "found ($solutionCustomDir)"
 else
 	echo "none ($solutionCustomDir)"
 fi
 
-printf "$scriptName :   local custom scripts        : "
+printf "[$scriptName]   local custom scripts           : "
 if [ -d  "$localCustomDir" ]; then
 	echo "found ($localCustomDir)"
 else
 	echo "none ($localCustomDir)"
 fi
 
-printf "$scriptName :   Properties for remote tasks : "
+printf "[$scriptName]   Properties for remote tasks    : "
 if [ -d  "$remotePropertiesDir" ]; then
 	echo "found ($remotePropertiesDir)"
 else
 	echo "none ($remotePropertiesDir)"
 fi
 
-printf "$scriptName :   Generated remote properties : "
+printf "[$scriptName]   Generated remote properties    : "
 if [ -d  "$remoteGenPropDir" ]; then
 	echo "found ($remoteGenPropDir)"
 else
 	echo "none ($remoteGenPropDir)"
 fi
 
-echo; echo "$scriptName : Create working directory and seed with solution files"; echo
+printf "[$scriptName]   Properties for container tasks : "
+if [ -d  "$containerPropertiesDir" ]; then
+	echo "found ($containerPropertiesDir)"
+else
+	echo "none ($containerPropertiesDir)"
+fi
+
+printf "[$scriptName]   Generated container properties : "
+if [ -d  "$containerGenPropDir" ]; then
+	echo "found ($containerGenPropDir)"
+else
+	echo "none ($containerGenPropDir)"
+fi
+
+echo; echo "[$scriptName] Create working directory and seed with solution files"; echo
 mkdir -v $WORK_DIR_DEFAULT
 cp -av manifest.txt $WORK_DIR_DEFAULT
 cp -v $AUTOMATIONROOT/CDAF.linux $WORK_DIR_DEFAULT/CDAF.properties
 
-echo; echo "$scriptName : Copy required local scripts"; echo
+echo; echo "[$scriptName] Copy required local scripts"; echo
 cp -avR $AUTOMATIONROOT/local/* $WORK_DIR_DEFAULT
 
 # Only retain either the override or default delivery process
@@ -102,9 +128,9 @@ fi
 
 if [ -d "$localPropertiesDir" ]; then
 	filesInDir=$(ls $localPropertiesDir)
-	if [ -n "$filesInDir" ]; then
+	if [ ! -z "$filesInDir" ]; then
 
-		echo; echo "$scriptName :   Properties for local tasks ($localPropertiesDir) : "; echo
+		echo; echo "[$scriptName]   Properties for local tasks ($localPropertiesDir) : "; echo
 		# Copy files to driver directory and to the root directory
 		mkdir -v $WORK_DIR_DEFAULT/${localPropertiesDir##*/}
 		cp -avR $localPropertiesDir/* $WORK_DIR_DEFAULT/${localPropertiesDir##*/}
@@ -115,13 +141,13 @@ if [ -d "$localPropertiesDir" ]; then
 			cp -av $SOLUTIONROOT/tasksRunRemote.tsk $WORK_DIR_DEFAULT
 		fi				
 	else
-		echo; echo "$scriptName :   Properties directory ($localPropertiesDir) for local tasks exists but contains no files, no action taken."; echo
+		echo; echo "[$scriptName]   Properties directory ($localPropertiesDir) for local tasks exists but contains no files, no action taken."; echo
 	fi
 fi
 
 # Merge files into directory, i.e. don't replace any properties provided above
 if [ -d "$localGenPropDir" ]; then
-	echo; echo "$scriptName : Processing generated properties directory (${localGenPropDir}):"; echo
+	echo; echo "[$scriptName] Processing generated properties directory (${localGenPropDir}):"; echo
 	if [ ! -d $WORK_DIR_DEFAULT/${localPropertiesDir##*/} ]; then
 		mkdir -v $WORK_DIR_DEFAULT/${localPropertiesDir##*/}
 	fi
@@ -146,45 +172,45 @@ if [ -f "$SOLUTIONROOT/tasksRun.tsk" ]; then
 fi
 
 if [ -d "$localCryptDir" ]; then
-	printf "$scriptName :   Local encrypted files : "	
+	printf "[$scriptName]   Local encrypted files : "	
 	mkdir -v $WORK_DIR_DEFAULT/${localCryptDir##*/}
 	cp -avR $localCryptDir/* $WORK_DIR_DEFAULT/${localCryptDir##*/}
 fi
 
 # CDAF 1.9.5 common encypted files
 if [ -d "$cryptDir" ]; then
-	printf "$scriptName :   Local encrypted files : "	
+	printf "[$scriptName]   Local encrypted files : "	
 	mkdir -v $WORK_DIR_DEFAULT/${cryptDir##*/}
 	cp -avR $cryptDir/* $WORK_DIR_DEFAULT/${cryptDir##*/}
 fi
 
 # CDAF 1.7.3 Solution Custom scripts, included in Local and Remote
 if [ -d "$solutionCustomDir" ]; then
-	printf "$scriptName :   Custom scripts        : "	
+	printf "[$scriptName]   Custom scripts        : "	
 	cp -avR $solutionCustomDir/* $WORK_DIR_DEFAULT/
 fi
 
 # Copy custom scripts to root
 if [ -d "$localCustomDir" ]; then
-	printf "$scriptName :   Local custom scripts  : "	
+	printf "[$scriptName]   Local custom scripts  : "	
 	cp -avR $localCustomDir/* $WORK_DIR_DEFAULT/
 fi
 
 # Do not attempt to create the directory and copy files unless the source directory exists AND contains files
 if [ -d "$remotePropertiesDir" ]; then
 	filesInDir=$(ls $remotePropertiesDir)
-	if [ -n "$filesInDir" ]; then
-		echo; echo "$scriptName :   Properties for remote tasks ($remotePropertiesDir) : "; echo
+	if [ ! -z "$filesInDir" ]; then
+		echo; echo "[$scriptName]   Properties for remote tasks ($remotePropertiesDir) : "; echo
 		mkdir -v $WORK_DIR_DEFAULT/${remotePropertiesDir##*/}
 		cp -avR $remotePropertiesDir/* $WORK_DIR_DEFAULT/${remotePropertiesDir##*/}; echo
 	else
-		echo; echo "$scriptName :   Properties directory ($remotePropertiesDir) for remote tasks exists but contains no files, no action taken."; echo
+		echo; echo "[$scriptName]   Properties directory ($remotePropertiesDir) for remote tasks exists but contains no files, no action taken."; echo
 	fi
 fi
 
 # Merge files into directory, i.e. don't replace any properties provided above
 if [ -d "$remoteGenPropDir" ]; then
-	echo; echo "$scriptName : Processing generated properties directory (${remoteGenPropDir}):"; echo
+	echo; echo "[$scriptName] Processing generated properties directory (${remoteGenPropDir}):"; echo
 	if [ ! -d $WORK_DIR_DEFAULT/${remotePropertiesDir##*/} ]; then
 		mkdir -v $WORK_DIR_DEFAULT/${remotePropertiesDir##*/}
 	fi
@@ -195,29 +221,42 @@ if [ -d "$remoteGenPropDir" ]; then
 	done
 fi
 
-echo; echo "$scriptName : Copy all helper scripts from remote to local : "; echo
+# 2.4.0 extend for container properties, processed locally, but using remote artefacts for execution
+if [ -d "$containerGenPropDir" ]; then
+	echo; echo "[$scriptName] Processing generated properties directory (${containerGenPropDir}):"; echo
+	if [ ! -d $WORK_DIR_DEFAULT/${containerPropertiesDir##*/} ]; then
+		mkdir -v $WORK_DIR_DEFAULT/${containerPropertiesDir##*/}
+	fi
+	for generatedPropertyPath in $(find ${containerGenPropDir}/ -type f); do
+		generatedPropertyFile=$(basename ${generatedPropertyPath})
+		echo "'${generatedPropertyPath}' -> '$WORK_DIR_DEFAULT/${containerPropertiesDir##*/}/${generatedPropertyFile}'"
+		cat ${generatedPropertyPath} >> $WORK_DIR_DEFAULT/${containerPropertiesDir##*/}/${generatedPropertyFile}
+	done
+fi
+
+echo; echo "[$scriptName] Copy all helper scripts from remote to local : "; echo
 cp -av $AUTOMATIONROOT/remote/*.sh $WORK_DIR_DEFAULT
 exitCode=$?
 if [ $exitCode -ne 0 ]; then
-	echo "$scriptName : cp -av $AUTOMATIONROOT/remote/*.sh $WORK_DIR_DEFAULT failed! Exit code = $exitCode."
+	echo "[$scriptName] cp -av $AUTOMATIONROOT/remote/*.sh $WORK_DIR_DEFAULT failed! Exit code = $exitCode."
 	exit $exitCode
 fi
 
 # Process Specific Local artifacts
-$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $localArtifactListFile $WORK_DIR_DEFAULT $AUTOMATIONROOT
+executeExpression "$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh $localArtifactListFile $WORK_DIR_DEFAULT $AUTOMATIONROOT"
 
 # 1.7.8 Process generic artifacts, i.e. applies to both local and remote
 if [ -f "${SOLUTIONROOT}/storeFor" ]; then
-	$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT $AUTOMATIONROOT
+	executeExpression "$AUTOMATIONROOT/buildandpackage/packageCopyArtefacts.sh "${SOLUTIONROOT}/storeFor" $WORK_DIR_DEFAULT $AUTOMATIONROOT"
 fi
 
 # If zipLocal property set in CDAF.solution of any build property, then a package will be created from the local tasks
 zipLocal=$($AUTOMATIONROOT/remote/getProperty.sh "$WORK_DIR_DEFAULT/manifest.txt" 'zipLocal')
 if [ "$zipLocal" ]; then
-	echo ; echo "$scriptName : Create the package (tarball) file, excluding git or svn control files"; echo
+	echo ; echo "[$scriptName] Create the package (tarball) file, excluding git or svn control files"; echo
 	cd $WORK_DIR_DEFAULT
 	tar -zcv --exclude='.git' --exclude='.svn' -f ../$SOLUTION-$zipLocal-$BUILDNUMBER.tar.gz .
 	cd ..
 else
-	echo; echo "$scriptName : zipLocal not set in CDAF.solution of any build property, no additional action."; echo
+	echo; echo "[$scriptName] zipLocal not set in CDAF.solution of any build property, no additional action."; echo
 fi

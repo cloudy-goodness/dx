@@ -12,8 +12,7 @@ function executeExpression {
 }  
 
 scriptName='openFirewallPort.sh'
-echo
-echo "[$scriptName] : --- start ---"
+echo; echo "[$scriptName] --- start ---"
 centos=$(uname -mrs | grep .el)
 if [ "$centos" ]; then
 	echo "[$scriptName]   Fedora based : $(uname -mrs)"
@@ -75,9 +74,9 @@ else
 		firewall-cmd --zone=public --list-all
 		
 		# View status
-		systemctl status firewalld
+		systemctl status firewalld  --no-pager
 	fi
 fi
 
-echo "[$scriptName] : --- end ---"
+echo "[$scriptName] --- end ---"
 exit 0

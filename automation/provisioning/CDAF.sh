@@ -11,19 +11,20 @@ function executeExpression {
 }  
 
 function setRoot {
-	for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
-		directoryName=${i%%/}
-		if [ -f "$directoryName/CDAF.linux" ]; then
-			echo $directoryName
-		fi
-	done
+	if [ -d "$1" ]; then
+		cd $1
+		for i in $(find . -mindepth 1 -maxdepth 1 -type d); do
+			directoryName=${i%%/}
+			if [ -f "$directoryName/CDAF.linux" ]; then
+				(cd "$directoryName" && pwd)
+			fi
+		done
+	fi
 }  
 
 scriptName='CDAF.sh'
 
 echo "[$scriptName] --- start ---"
-echo "[$scriptName]   whoami         : $(whoami)"
-echo "[$scriptName]   pwd            : $(pwd)"
 runas="$1"
 if [ -z "$runas" ]; then
 	echo "[$scriptName]   runas          : (not supplied, run as current user $(whoami))"
@@ -36,40 +37,53 @@ else
 	fi
 fi
 
-OPT_ARG="$2"
+workspace="$2"
+if [ -z "$workspace" ]; then
+	workspace='/vagrant/'
+	echo "[$scriptName]   workspace      : $workspace (not supplied, set to default)"
+else
+	echo "[$scriptName]   workspace      : $workspace"
+fi
+
+OPT_ARG="$3"
 if [ -z "$OPT_ARG" ]; then
 	echo "[$scriptName]   OPT_ARG        : (not supplied)"
 else
 	echo "[$scriptName]   OPT_ARG        : $OPT_ARG"
 fi
-automationRoot=$(setRoot)
-if [ -z "$automationRoot" ]; then
-	if [ -d "/vagrant" ]; then
-		cd "/vagrant"
-		automationRoot=$(setRoot)
-	fi
-	if [ -z "$automationRoot" ]; then
-		automationRoot="automation"
-		echo "[$scriptName]   automationRoot : $automationRoot (CDAF.linux not found)"
-	else
-		echo "[$scriptName]   automationRoot : $automationRoot (CDAF.linux found in /vagrant)"
+
+echo "[$scriptName]   whoami         = $(whoami)"
+echo "[$scriptName]   pwd            = $(pwd)"
+
+AUTOMATIONROOT=$(setRoot "/vagrant")
+if [ -z "$AUTOMATIONROOT" ]; then
+	AUTOMATIONROOT=$(setRoot "/vagrant/automation")
+	echo "[$scriptName]   AUTOMATIONROOT = $AUTOMATIONROOT"
+	if [ -z "$AUTOMATIONROOT" ]; then
+		echo "[$scriptName] AUTOMATIONROOT cannot be found!"
+		exit 7755
 	fi
 else
-	echo "[$scriptName]   automationRoot : $automationRoot (CDAF.linux found)"
+	echo "[$scriptName]   AUTOMATIONROOT = $AUTOMATIONROOT"
 fi
 
 echo
-echo "[$scriptName] Execute continuous delivery emulation"
-echo
+cat "${AUTOMATIONROOT}/CDAF.linux" | grep productVersion
+if [ "$?" != "0" ]; then
+	echo "$0 : Exception! CDAF productVersion not found"
+	exit $exitCode
+fi
+
+echo; echo "[$scriptName] Execute continuous delivery emulation"; echo
 if [ -z "$runas" ]; then
-	executeExpression "cd /vagrant/"
-	executeExpression "${automationRoot}/cdEmulate.sh $OPT_ARG"
+	executeExpression "cd $workspace"
+	executeExpression "${AUTOMATIONROOT}/cdEmulate.sh $OPT_ARG"
 else
 su $runas << EOF
-	echo "[$scriptName] cd /vagrant/"
-	cd /vagrant/
-	echo "[$scriptName] ${automationRoot}/cdEmulate.sh $OPT_ARG"
-	${automationRoot}/cdEmulate.sh $OPT_ARG
+	echo "[$scriptName] cd $workspace"
+	cd $workspace
+	echo "[$scriptName] ${AUTOMATIONROOT}/cdEmulate.sh $OPT_ARG"
+	${AUTOMATIONROOT}/cdEmulate.sh $OPT_ARG
 EOF
 fi
 

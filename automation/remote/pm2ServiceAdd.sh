@@ -7,14 +7,14 @@ function executeExpression {
 	exitCode=$?
 	# Check execution normal, anything other than 0 is an exception
 	if [ "$exitCode" != "0" ]; then
-		echo "$scriptName : Exception! $EXECUTABLESCRIPT returned $exitCode"
+		echo "[$scriptName] Exception! $EXECUTABLESCRIPT returned $exitCode"
 		exit $exitCode
 	fi
 }  
 
 if [ "$#" -lt 2 ]; then
-	echo "[$scriptName] : Add a nodejs process to pm2, usage: $scriptName installDirectory entryPoint"
-	echo "[$scriptName] : Example ./$scriptName /opt/gateway server.js"
+	echo "[$scriptName] Add a nodejs process to pm2, usage: $scriptName installDirectory entryPoint"
+	echo "[$scriptName] Example ./$scriptName /opt/gateway server.js"
   exit 1
 fi
 
