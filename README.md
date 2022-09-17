@@ -1,7 +1,11 @@
 [![cdaf version](automation/badge.svg)](http://cdaf.io)
+
 # Digital Experience
 
-Web APIs delivered via IBM Cloud (formerly BlueMix).
+Web APIs consumed by:
+
+- IBM Cloud (formerly BlueMix)
+- OpenShift (CRC)
 
 # Make your own fork
 
